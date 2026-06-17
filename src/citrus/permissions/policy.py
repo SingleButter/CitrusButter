@@ -4,6 +4,9 @@ from citrus.permissions.base import PermissionDecision
 class GradedPermissionPolicy:
     """Small default policy for local coding tools."""
 
+    def __init__(self, auto_approve: bool = False) -> None:
+        self.auto_approve = auto_approve
+
     def evaluate_tool(
         self,
         tool_name: str,

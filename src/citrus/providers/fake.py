@@ -11,12 +11,13 @@ class FakeProvider:
     def __init__(self, responses: Sequence[ModelResponse]) -> None:
         self._responses = list(responses)
         self._index = 0
+        self.requests: list[ModelRequest] = []
 
     def complete(self, request: ModelRequest) -> ModelResponse:
+        self.requests.append(request)
         if self._index >= len(self._responses):
             raise RuntimeError("FakeProvider has no scripted responses left.")
 
         response = self._responses[self._index]
         self._index += 1
         return response
-

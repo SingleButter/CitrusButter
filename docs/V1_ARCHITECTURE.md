@@ -73,16 +73,11 @@ memory, session, or observer interfaces instead of modifying the runtime loop.
 citrus/
   cli/
     app.py
-    commands/
-      run.py
-      config.py
-      providers.py
 
   runtime/
     agent.py
     events.py
     messages.py
-    errors.py
 
   providers/
     base.py
@@ -104,12 +99,9 @@ citrus/
   permissions/
     base.py
     policy.py
-    approvals.py
 
   context/
     builder.py
-    sources.py
-    models.py
 
   memory/
     base.py
@@ -119,8 +111,10 @@ citrus/
   sessions/
     base.py
     jsonl.py
+    memory.py
 
   config/
+    __init__.py
     settings.py
 ```
 
@@ -175,7 +169,8 @@ class ToolResult(BaseModel):
 ```
 
 This prevents Anthropic, OpenAI, or DeepSeek formats from leaking into the
-runtime.
+runtime. Provider adapters translate CitrusButter messages, tool schemas, and
+tool-call responses at the adapter boundary.
 
 ## Provider Interface
 
@@ -442,4 +437,3 @@ V1 is complete when:
 - MCP has a documented `ToolSource` extension path.
 - Tests verify the runtime and extension contracts.
 - README explains the architecture, quickstart, examples, and roadmap.
-

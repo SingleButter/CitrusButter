@@ -8,6 +8,7 @@ from citrus.runtime.messages import ToolResult
 
 class ToolContext(BaseModel):
     workspace: Path = Field(default_factory=Path.cwd)
+    tool_call_id: str = ""
 
 
 class Tool(Protocol):
@@ -17,4 +18,3 @@ class Tool(Protocol):
 
     def run(self, input: dict[str, object], context: ToolContext) -> ToolResult:
         ...
-
