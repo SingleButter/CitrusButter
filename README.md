@@ -44,6 +44,48 @@ export DEEPSEEK_API_KEY="..."
 uv run citrus run "inspect this project" --provider deepseek --model deepseek-chat
 ```
 
+You can also use a TOML config file. By default CitrusButter reads:
+
+```text
+~/.config/citrus/config.toml
+```
+
+Set `CITRUS_CONFIG` to use a different file:
+
+```bash
+export CITRUS_CONFIG="/path/to/config.toml"
+```
+
+Example config:
+
+```toml
+provider = "anthropic"
+model = "claude-sonnet-4-5"
+
+[providers.anthropic]
+api_key = "sk-ant-..."
+model = "claude-sonnet-4-5"
+
+[providers.openai]
+api_key = "sk-..."
+model = "gpt-4.1"
+
+[providers.deepseek]
+api_key = "sk-..."
+model = "deepseek-chat"
+base_url = "https://api.deepseek.com"
+```
+
+Precedence is:
+
+```text
+CLI flags > environment variables > provider-specific config > global config > defaults
+```
+
+Environment variables such as `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+`DEEPSEEK_API_KEY`, `CITRUS_PROVIDER`, and `CITRUS_MODEL` still work and
+override the config file.
+
 ## Architecture
 
 ```mermaid

@@ -3,7 +3,7 @@ from typing import Annotated
 
 import typer
 
-from citrus.config.settings import ProviderSettingsError, build_provider
+from citrus.config.settings import ProviderSettingsError, build_provider, load_config
 from citrus.context.builder import ContextBuilder
 from citrus.permissions.policy import GradedPermissionPolicy
 from citrus.providers.base import ModelResponse
@@ -25,7 +25,10 @@ def run(
         str,
         typer.Argument(help="Coding task for the CitrusButter runtime."),
     ],
-    provider: Annotated[str, typer.Option(help="Provider to use.")] = "fake",
+    provider: Annotated[
+        str | None,
+        typer.Option(help="Provider to use. Defaults to config file."),
+    ] = None,
     model: Annotated[
         str | None,
         typer.Option(help="Model override for real providers."),
@@ -37,14 +40,21 @@ def run(
 ) -> None:
     """Run a coding-agent task."""
     try:
+        config = load_config(os.environ)
+        selected_provider_name = provider or config.provider
         selected_provider = (
             FakeProvider(
                 responses=[
                     ModelResponse(messages=[Message.assistant_text(fake_response)]),
                 ]
             )
-            if provider == "fake"
-            else build_provider(provider, model=model, env=os.environ)
+            if selected_provider_name == "fake"
+            else build_provider(
+                selected_provider_name,
+                model=model,
+                env=os.environ,
+                config=config,
+            )
         )
     except ProviderSettingsError as exc:
         typer.echo(str(exc), err=True)
@@ -73,8 +83,12 @@ def providers() -> None:
 @app.command()
 def config() -> None:
     """Show or update CitrusButter configuration."""
-    typer.echo(f"CITRUS_PROVIDER={os.getenv('CITRUS_PROVIDER', 'fake')}")
-    typer.echo(f"CITRUS_MODEL={os.getenv('CITRUS_MODEL', '')}")
-    typer.echo(
-        "Provider API keys are read from provider-specific environment variables."
-    )
+    loaded = load_config(os.environ)
+    typer.echo(f"config={loaded.path}")
+    typer.echo(f"provider={os.getenv('CITRUS_PROVIDER', loaded.provider)}")
+    typer.echo(f"model={os.getenv('CITRUS_MODEL', loaded.model or '')}")
+    for name, provider_config in sorted(loaded.providers.items()):
+        key_state = "configured" if provider_config.api_key else "missing"
+        model_state = provider_config.model or ""
+        typer.echo(f"{name} api_key={key_state} model={model_state}")
+    typer.echo("Environment variables override config file values.")

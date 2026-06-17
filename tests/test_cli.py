@@ -52,5 +52,49 @@ def test_cli_config_shows_environment_based_defaults() -> None:
     result = runner.invoke(app, ["config"])
 
     assert result.exit_code == 0
-    assert "CITRUS_PROVIDER" in result.output
-    assert "CITRUS_MODEL" in result.output
+    assert "config=" in result.output
+    assert "provider=fake" in result.output
+    assert "model=" in result.output
+    assert "Environment variables override config file values." in result.output
+
+
+def test_cli_config_shows_config_file_values(tmp_path, monkeypatch) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+provider = "openai"
+model = "gpt-test"
+
+[providers.openai]
+api_key = "config-key"
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CITRUS_CONFIG", str(config_path))
+
+    result = runner.invoke(app, ["config"])
+
+    assert result.exit_code == 0
+    assert str(config_path) in result.output
+    assert "provider=openai" in result.output
+    assert "model=gpt-test" in result.output
+    assert "openai api_key=configured" in result.output
+
+
+def test_cli_run_uses_config_file_for_real_provider(tmp_path, monkeypatch) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+provider = "anthropic"
+model = "claude-test"
+
+[providers.anthropic]
+api_key = "config-key"
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CITRUS_CONFIG", str(config_path))
+
+    result = runner.invoke(app, ["run", "say hello"])
+
+    assert result.exit_code != 2
