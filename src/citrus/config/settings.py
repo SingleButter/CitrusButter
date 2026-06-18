@@ -34,8 +34,8 @@ class ResolvedProviderSettings(BaseModel):
     base_url: str | None = None
 
 
-def load_config(env: Mapping[str, str]) -> CitrusConfig:
-    path = _config_path(env)
+def load_config(env: Mapping[str, str], cwd: Path | None = None) -> CitrusConfig:
+    path = _config_path(env, cwd or Path.cwd())
     if not path.exists():
         return CitrusConfig(path=path)
 
@@ -117,10 +117,13 @@ def build_provider(
     raise ProviderSettingsError(f"Unknown provider: {provider}")
 
 
-def _config_path(env: Mapping[str, str]) -> Path:
+def _config_path(env: Mapping[str, str], cwd: Path) -> Path:
     explicit = env.get("CITRUS_CONFIG")
     if explicit:
         return Path(explicit).expanduser()
+    project_local = cwd / ".citrus" / "config.toml"
+    if project_local.exists():
+        return project_local
     return Path.home() / ".config" / "citrus" / "config.toml"
 
 

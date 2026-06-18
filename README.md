@@ -19,6 +19,37 @@ The first version focuses on a lightweight but real foundation:
 See [docs/V1_ARCHITECTURE.md](docs/V1_ARCHITECTURE.md) for the current V1
 architecture plan.
 
+## Current Status
+
+V1 is implemented and verified. The current CLI can:
+
+- Read project-local configuration from `.citrus/config.toml`.
+- Run deterministic fake-provider smoke tests.
+- Instantiate Anthropic, OpenAI, and DeepSeek providers from config or
+  environment variables.
+- Execute the runtime loop with local tools, permission checks, and structured
+  session events.
+
+Latest verified checks:
+
+```text
+.venv/bin/pytest      46 passed
+.venv/bin/ruff check  All checks passed
+.venv/bin/mypy src    Success
+```
+
+Manual provider smoke:
+
+```bash
+.venv/bin/citrus run "Reply with exactly: citrus-ok" --provider deepseek
+```
+
+Expected output:
+
+```text
+citrus-ok
+```
+
 ## Quickstart
 
 ```bash
@@ -44,7 +75,17 @@ export DEEPSEEK_API_KEY="..."
 uv run citrus run "inspect this project" --provider deepseek --model deepseek-chat
 ```
 
-You can also use a TOML config file. By default CitrusButter reads:
+You can also use a TOML config file. For project-local development, create:
+
+```text
+.citrus/config.toml
+```
+
+The `.citrus/` directory is ignored by git because it may contain API keys.
+The repository includes a local `.citrus/config.toml` placeholder for your
+machine, but it is intentionally not tracked by git.
+
+If no project-local config exists, CitrusButter falls back to:
 
 ```text
 ~/.config/citrus/config.toml
@@ -79,7 +120,7 @@ base_url = "https://api.deepseek.com"
 Precedence is:
 
 ```text
-CLI flags > environment variables > provider-specific config > global config > defaults
+CLI flags > environment variables > CITRUS_CONFIG > .citrus/config.toml > ~/.config/citrus/config.toml > defaults
 ```
 
 Environment variables such as `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
@@ -148,6 +189,18 @@ citrus config
 `citrus run` uses the SDK runtime. The fake provider is deterministic and useful
 for offline demos and tests. Real providers are selected with `--provider` and
 API keys from environment variables.
+
+## Sessions
+
+The SDK includes two session stores:
+
+- `InMemorySessionStore`: used by the current CLI. Events are available only
+  while the process is running.
+- `JsonlSessionStore`: implemented for persistent event logs, but not yet wired
+  into the CLI by default.
+
+The next practical step is to add a CLI option such as `--session-dir
+.citrus/sessions` and persist each run as JSONL.
 
 ## Development
 

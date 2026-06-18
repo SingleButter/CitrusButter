@@ -10,6 +10,34 @@ local coding tasks through a CLI, call multiple model providers, execute local
 tools, enforce permissions, assemble context, record sessions, and reserve clear
 extension points for future memory, MCP, hooks, sandboxing, and evaluation.
 
+## Implementation Status
+
+V1 is implemented in the current codebase. Verified capabilities:
+
+- `AgentRuntime` executes a turn loop with model requests, tool calls,
+  permission decisions, and session events.
+- CLI commands `run`, `providers`, and `config` are available.
+- Project-local `.citrus/config.toml` is supported and ignored by git.
+- Anthropic, OpenAI, DeepSeek, and Fake providers share the same
+  `ModelProvider` interface.
+- OpenAI-compatible providers, including DeepSeek, map internal messages,
+  tool schemas, and tool-call responses through adapter code.
+- Local tools support workspace-scoped file read, file write, text search, and
+  shell command execution.
+- `InMemorySessionStore` and `JsonlSessionStore` are implemented.
+- CLI currently uses `InMemorySessionStore`; JSONL session persistence is an SDK
+  capability but not yet the CLI default.
+- DeepSeek was manually smoke-tested through the CLI with a real configured API
+  key and returned `citrus-ok`.
+
+Current verification:
+
+```text
+.venv/bin/pytest      46 passed
+.venv/bin/ruff check  All checks passed
+.venv/bin/mypy src    Success
+```
+
 ## Goals
 
 - Provide a reusable Python SDK for building coding-agent workflows.
@@ -191,6 +219,18 @@ V1 providers:
 
 `FakeProvider` is required for deterministic tests and offline demos.
 
+Configuration can come from:
+
+1. CLI flags.
+2. Environment variables.
+3. `CITRUS_CONFIG`.
+4. Project-local `.citrus/config.toml`.
+5. Global `~/.config/citrus/config.toml`.
+6. Provider defaults.
+
+Project-local `.citrus/config.toml` is preferred for development and is ignored
+by git because it may contain API keys.
+
 ## Tool System
 
 Tools expose local capabilities to the agent.
@@ -363,6 +403,10 @@ class RuntimeObserver(Protocol):
 
 Future hooks, tracing, eval, and memory extraction should use observers instead
 of modifying `AgentRuntime`.
+
+Current CLI note: the CLI constructs `InMemorySessionStore`, so events do not
+persist after the command exits. `JsonlSessionStore` is available for SDK use and
+should be wired into the CLI in the next session-persistence step.
 
 ## CLI
 

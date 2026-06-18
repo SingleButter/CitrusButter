@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CitrusButter Architecture</title>
+    <meta
+      name="description"
+      content="CitrusButter V1 项目介绍：Python SDK + CLI coding agent harness 的架构、组件、交互流程和扩展边界。"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar" aria-label="站点导航">
+      <a class="brand-mark" href="#top" aria-label="CitrusButter 首页">
+        <span class="brand-dot"></span>
+        <span>CitrusButter</span>
+      </a>
+      <nav class="nav-links" aria-label="页面章节">
+        <a href="#architecture">架构</a>
+        <a href="#components">组件</a>
+        <a href="#flow">流程</a>
+        <a href="#extension">扩展</a>
+        <a href="#source">源码</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero section-reveal">
+        <div class="hero-inner">
+          <p class="eyebrow">Python SDK + CLI Coding Agent Harness</p>
+          <h1>CitrusButter</h1>
+          <p class="hero-copy">
+            一个工程化、模块化、可测试、可扩展的 coding agent runtime kernel。
+            V1 已经具备真实 runtime loop、多模型 adapter、本地工具、权限系统、
+            session 事件流、memory 边界和 CLI 入口。
+          </p>
+          <div class="hero-actions" aria-label="快速定位">
+            <a href="#architecture">查看架构</a>
+            <a href="#flow">查看交互流程</a>
+          </div>
+        </div>
+
+        <div class="hero-map" aria-label="CitrusButter 核心架构预览">
+          <div class="map-node cli">citrus CLI</div>
+          <div class="map-node runtime">AgentRuntime</div>
+          <div class="map-node provider">ModelProvider</div>
+          <div class="map-node tools">ToolRegistry</div>
+          <div class="map-node policy">PermissionPolicy</div>
+          <div class="map-node context">ContextBuilder</div>
+          <div class="map-node session">SessionStore</div>
+          <div class="map-node memory">MemoryService</div>
+          <span class="beam beam-a"></span>
+          <span class="beam beam-b"></span>
+          <span class="beam beam-c"></span>
+          <span class="beam beam-d"></span>
+          <span class="beam beam-e"></span>
+          <span class="beam beam-f"></span>
+        </div>
+      </section>
+
+      <section class="summary section-reveal" aria-labelledby="summary-title">
+        <div>
+          <p class="eyebrow">项目定位</p>
+          <h2 id="summary-title">不是复刻 Claude Code，而是重建 harness 内核。</h2>
+        </div>
+        <div class="summary-copy">
+          <p>
+            CitrusButter 的核心目标是展示软件工程能力：将模型接入、工具执行、
+            本地权限、上下文组装、会话事件、memory 和未来 MCP 接入拆成稳定边界。
+          </p>
+          <p>
+            V1 遵循一个简单规则：<strong>AgentRuntime 拥有 loop，其他模块都是可替换依赖。</strong>
+            未来新增 provider、tool、memory 后端或 MCP tool source 时，应以新增实现和测试为主，
+            不横向修改 runtime 主流程。
+          </p>
+        </div>
+      </section>
+
+      <section
+        id="architecture"
+        class="architecture section-reveal"
+        aria-labelledby="architecture-title"
+      >
+        <div class="section-heading">
+          <p class="eyebrow">Overall Architecture</p>
+          <h2 id="architecture-title">整体架构设计</h2>
+          <p>
+            CLI 只是 SDK 的第一方客户端。所有核心行为都通过 runtime kernel 协调，
+            并通过端口接口连接到 provider、tool、permission、context、session、memory 和 observer。
+          </p>
+        </div>
+
+        <div class="architecture-board" aria-label="完整架构图">
+          <div class="layer cli-layer">
+            <span class="layer-label">Client</span>
+            <div class="arch-node primary">citrus CLI</div>
+          </div>
+
+          <div class="connector down"></div>
+
+          <div class="layer runtime-layer">
+            <span class="layer-label">Kernel</span>
+            <div class="arch-node runtime-node">
+              <strong>AgentRuntime</strong>
+              <span>owns loop, events, decisions</span>
+            </div>
+          </div>
+
+          <div class="fanout" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+            <span></span><span></span>
+          </div>
+
+          <div class="dependency-grid">
+            <div class="arch-node">
+              <strong>ModelProvider</strong>
+              <span>Anthropic / OpenAI / DeepSeek / Fake</span>
+            </div>
+            <div class="arch-node">
+              <strong>ToolRegistry</strong>
+              <span>read, write, search, shell, future sources</span>
+            </div>
+            <div class="arch-node">
+              <strong>PermissionPolicy</strong>
+              <span>allow, ask, deny before risky tools</span>
+            </div>
+            <div class="arch-node">
+              <strong>ContextBuilder</strong>
+              <span>turn input and future ContextSource</span>
+            </div>
+            <div class="arch-node">
+              <strong>SessionStore</strong>
+              <span>JSONL or in-memory event log</span>
+            </div>
+            <div class="arch-node">
+              <strong>MemoryService</strong>
+              <span>Noop V1, stable boundary for later memory</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="components"
+        class="components section-reveal"
+        aria-labelledby="components-title"
+      >
+        <div class="section-heading">
+          <p class="eyebrow">Component Catalog</p>
+          <h2 id="components-title">每个组件包含什么</h2>
+          <p>
+            V1 的组件刻意保持窄接口：每个模块只做一件事，并通过明确模型交换数据。
+            下面按职责解释每个部分的内容、输入、输出和扩展方式。
+          </p>
+        </div>
+
+        <div class="component-list">
+          <article class="component-item">
+            <span class="component-index">01</span>
+            <div>
+              <h3>CLI Layer</h3>
+              <p>
+                `src/citrus/cli/app.py` 提供 `citrus run`、`citrus providers`、
+                `citrus config`。它不拥有业务逻辑，只负责解析参数、创建 provider、
+                组装 runtime，然后输出结果。
+              </p>
+              <dl>
+                <dt>包含</dt>
+                <dd>Typer app、provider 选择、fake demo、配置展示。</dd>
+                <dt>交互</dt>
+                <dd>调用 `build_provider` 或 `FakeProvider`，再调用 `AgentRuntime.run()`。</dd>
+              </dl>
+            </div>
+          </article>
+
+          <article class="component-item">
+            <span class="component-index">02</span>
+            <div>
+              <h3>Runtime Kernel</h3>
+              <p>
+                `AgentRuntime` 是系统中心。它创建 session，构建 context，调用模型，
+                收集 tool call，执行权限判断，运行工具，追加 tool result，
+                并记录结构化事件。
+              </p>
+              <dl>
+                <dt>包含</dt>
+                <dd>`RunRequest`、`RunResult`、turn loop、event emit、tool execution。</dd>
+                <dt>交互</dt>
+                <dd>依赖 provider、registry、policy、context、session、memory、observer。</dd>
+              </dl>
+            </div>
+          </article>
+
+          <article class="component-item">
+            <span class="component-index">03</span>
+            <div>
+              <h3>Provider Adapters</h3>
+              <p>
+                Provider 层把 CitrusButter 的内部 `Message`、`ToolSpec`、`ToolCall`
+                转换成各模型厂商格式。OpenAI 与 DeepSeek 使用 OpenAI-compatible
+                chat completions；Anthropic 使用 messages API 形态。
+              </p>
+              <dl>
+                <dt>包含</dt>
+                <dd>`AnthropicProvider`、`OpenAIProvider`、`DeepSeekProvider`、`FakeProvider`。</dd>
+                <dt>交互</dt>
+                <dd>接收 `ModelRequest`，返回统一 `ModelResponse`，避免厂商格式泄漏到 runtime。</dd>
+              </dl>
+            </div>
+          </article>
+
+          <article class="component-item">
+            <span class="component-index">04</span>
+            <div>
+              <h3>Tool System</h3>
+              <p>
+                Tool 是 agent 能触达本地环境的唯一能力出口。V1 提供文件读取、
+                文件写入、文本搜索和 shell 命令，全部限制在 workspace 语义下运行。
+              </p>
+              <dl>
+                <dt>包含</dt>
+                <dd>`Tool` protocol、`ToolContext`、`ToolRegistry`、`ToolSource`、local tools。</dd>
+                <dt>交互</dt>
+                <dd>runtime 根据 model tool call 从 registry 取工具，并传入 workspace context。</dd>
+              </dl>
+            </div>
+          </article>
+
+          <article class="component-item">
+            <span class="component-index">05</span>
+            <div>
+              <h3>Permission Policy</h3>
+              <p>
+                权限层在工具执行前做决策。默认策略允许读文件；写文件和 shell
+                命令需要审批；明显危险命令直接 deny。测试中可使用 auto approve
+                跑通工具闭环。
+              </p>
+              <dl>
+                <dt>包含</dt>
+                <dd>`PermissionDecision`、`GradedPermissionPolicy`、allow / ask / deny。</dd>
+                <dt>交互</dt>
+                <dd>runtime 在每次 tool call 前发出 permission events，并按决策继续或失败。</dd>
+              </dl>
+            </div>
+          </article>
+
+          <article class="component-item">
+            <span class="component-index">06</span>
+            <div>
+              <h3>Context Builder</h3>
+              <p>
+                V1 的 context deliberately small：先把用户任务转换成内部 message。
+                这个模块是未来检索、repo summary、memory context 和 tool result summary 的入口。
+              </p>
+              <dl>
+                <dt>包含</dt>
+                <dd>`ContextBuilder.build(task)` 与内部 `Message` 输出。</dd>
+                <dt>交互</dt>
+                <dd>runtime 每次任务开始先调用它，provider 只看到统一后的 messages。</dd>
+              </dl>
+            </div>
+          </article>
+
+          <article class="component-item">
+            <span class="component-index">07</span>
+            <div>
+              <h3>Session And Events</h3>
+              <p>
+                Session 不是 memory，而是一次任务的审计轨迹。事件流记录 task、
+                context、model request/response、tool、permission、completion 和 failure。
+              </p>
+              <dl>
+                <dt>包含</dt>
+                <dd>`EventType`、`SessionEvent`、`InMemorySessionStore`、`JsonlSessionStore`。</dd>
+                <dt>交互</dt>
+                <dd>runtime 每个关键步骤 append event；observer 可以订阅这些 event。</dd>
+              </dl>
+            </div>
+          </article>
+
+          <article class="component-item">
+            <span class="component-index">08</span>
+            <div>
+              <h3>Memory Boundary</h3>
+              <p>
+                V1 不实现复杂长期记忆，但稳定了 future memory 的接口位置。
+                Memory 作为跨任务事实系统存在，和 session history、context input 分离。
+              </p>
+              <dl>
+                <dt>包含</dt>
+                <dd>`MemoryItem`、`MemoryCandidate`、`MemoryStore`、`MemoryService`、`NoopMemoryStore`。</dd>
+                <dt>交互</dt>
+                <dd>未来通过 `ContextSource` 检索，通过 `RuntimeObserver` 生成候选记忆。</dd>
+              </dl>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="flow" class="flow section-reveal" aria-labelledby="flow-title">
+        <div class="section-heading">
+          <p class="eyebrow">Runtime Flow</p>
+          <h2 id="flow-title">组件之间如何交互</h2>
+          <p>
+            一次 `citrus run` 会穿过 CLI、runtime、context、provider、permission、
+            tools 和 session event stream。下面是 V1 的真实交互路径。
+          </p>
+        </div>
+
+        <ol class="timeline">
+          <li>
+            <button class="timeline-step" type="button" aria-expanded="true">
+              <span>1</span>
+              CLI 解析任务
+            </button>
+            <p>
+              `citrus run` 读取 provider、model、fake response 和环境变量，
+              通过 `build_provider` 或 `FakeProvider` 创建模型 adapter。
+            </p>
+          </li>
+          <li>
+            <button class="timeline-step" type="button" aria-expanded="true">
+              <span>2</span>
+              Runtime 创建 session
+            </button>
+            <p>
+              `AgentRuntime.run()` 创建 session id，记录 `TaskStarted`，
+              并准备 workspace、tool registry、permission policy 和 observers。
+            </p>
+          </li>
+          <li>
+            <button class="timeline-step" type="button" aria-expanded="true">
+              <span>3</span>
+              ContextBuilder 生成 messages
+            </button>
+            <p>
+              当前 V1 把用户任务转换为 `Message.user_text()`。
+              这一步未来会接入 repo summary、memory retrieval 和 file snippets。
+            </p>
+          </li>
+          <li>
+            <button class="timeline-step" type="button" aria-expanded="true">
+              <span>4</span>
+              Provider 接收统一请求
+            </button>
+            <p>
+              Runtime 把 messages 和 ToolRegistry 导出的 `ToolSpec` 组合成
+              `ModelRequest`。Provider adapter 负责映射到各厂商 API。
+            </p>
+          </li>
+          <li>
+            <button class="timeline-step" type="button" aria-expanded="true">
+              <span>5</span>
+              Tool call 进入权限层
+            </button>
+            <p>
+              如果模型返回 tool call，runtime 先记录 `ToolRequested`，
+              再调用 `PermissionPolicy`，根据 allow、ask、deny 决定是否执行。
+            </p>
+          </li>
+          <li>
+            <button class="timeline-step" type="button" aria-expanded="true">
+              <span>6</span>
+              Tool 执行并返回结果
+            </button>
+            <p>
+              工具在 workspace 内运行，返回 `ToolResult`。Runtime 把结果追加为 tool message，
+              进入下一轮模型调用，直到模型返回最终文本。
+            </p>
+          </li>
+          <li>
+            <button class="timeline-step" type="button" aria-expanded="true">
+              <span>7</span>
+              Session 记录可审计事件
+            </button>
+            <p>
+              每个关键动作都会写入 `SessionEvent`。JSONL store 可持久化，observer
+              未来可用于 hooks、tracing、eval 和 memory extraction。
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section
+        id="extension"
+        class="extension section-reveal"
+        aria-labelledby="extension-title"
+      >
+        <div class="section-heading">
+          <p class="eyebrow">Extension Strategy</p>
+          <h2 id="extension-title">未来扩展如何保持轻量</h2>
+          <p>
+            V1 的重点不是把所有未来能力都做完，而是让未来能力以新增实现的方式进入系统。
+            这些扩展点已经由测试覆盖。
+          </p>
+        </div>
+
+        <div class="extension-grid">
+          <div>
+            <h3>新增模型</h3>
+            <p>实现 `ModelProvider`，把外部 API 映射到 `ModelRequest` / `ModelResponse`。</p>
+          </div>
+          <div>
+            <h3>新增工具</h3>
+            <p>实现 `Tool`，注册到 `ToolRegistry`。权限仍由 runtime 统一处理。</p>
+          </div>
+          <div>
+            <h3>接入 MCP</h3>
+            <p>实现 `MCPToolSource`，把远程工具转换为标准 `Tool`，无需改 runtime loop。</p>
+          </div>
+          <div>
+            <h3>扩展 Memory</h3>
+            <p>替换 `MemoryStore`，或用 observer 从 session events 中生成 memory candidate。</p>
+          </div>
+          <div>
+            <h3>增加 Eval / Tracing</h3>
+            <p>实现 `RuntimeObserver` 订阅事件流，导出 traces、metrics 或回放数据。</p>
+          </div>
+          <div>
+            <h3>增强 Workspace Safety</h3>
+            <p>替换 local tools 或 permission policy，引入 sandbox、worktree 或 diff review。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="source" class="source section-reveal" aria-labelledby="source-title">
+        <div class="section-heading">
+          <p class="eyebrow">Source Reading Map</p>
+          <h2 id="source-title">源码阅读索引</h2>
+          <p>
+            按目录结构列出 `src/citrus` 的每个文件、主要声明和精简说明。
+            代码块会从当前仓库源码加载，适合作为阅读类声明和接口边界的参考。
+          </p>
+        </div>
+
+        <div class="source-layout" aria-label="CitrusButter 源码目录与代码">
+          <aside class="source-index" aria-label="源码目录结构">
+            <div class="source-index-header">
+              <strong>src/citrus</strong>
+              <span data-source-count>0 files</span>
+            </div>
+            <div class="source-tree" data-source-tree></div>
+          </aside>
+
+          <div class="source-browser" data-source-browser>
+            <p class="source-empty">
+              正在加载源码索引。若代码没有显示，请通过本地静态服务器打开此页面。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="verification section-reveal" aria-labelledby="verification-title">
+        <div>
+          <p class="eyebrow">Evidence</p>
+          <h2 id="verification-title">测试与工程证据</h2>
+        </div>
+        <div class="terminal" aria-label="验证命令">
+          <pre><code>$ .venv/bin/pytest
+37 passed
+
+$ .venv/bin/ruff check .
+All checks passed!
+
+$ .venv/bin/mypy src
+Success: no issues found in 38 source files
+
+$ .venv/bin/citrus run "say hello" --provider fake --fake-response hello
+hello</code></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>CitrusButter V1 · Runtime kernel first, extension points by design.</p>
+      <a href="#top">回到顶部</a>
+    </footer>
+
+    <script src="./source-map.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>

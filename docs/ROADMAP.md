@@ -8,18 +8,26 @@ documentation.
 
 Goal: build the smallest useful coding harness with stable extension boundaries.
 
-- Python package and `citrus` CLI.
-- `AgentRuntime` loop.
-- Internal message, tool call, and tool result models.
-- Anthropic, OpenAI, DeepSeek, and Fake providers.
-- Local tools: read file, write file, search files, run shell.
-- Permission policy for reads, writes, and shell commands.
-- Lightweight context builder.
-- Structured session event stream.
-- No-op memory boundary.
-- `ToolSource` boundary for future MCP support.
-- Contract tests for providers, tools, permissions, context, sessions, and
+- Done: Python package and `citrus` CLI.
+- Done: `AgentRuntime` loop.
+- Done: Internal message, tool call, and tool result models.
+- Done: Anthropic, OpenAI, DeepSeek, and Fake providers.
+- Done: Project-local `.citrus/config.toml` with env and CLI overrides.
+- Done: Local tools: read file, write file, search files, run shell.
+- Done: Permission policy for reads, writes, and shell commands.
+- Done: Lightweight context builder.
+- Done: Structured session event stream.
+- Done: In-memory and JSONL session stores.
+- Done: No-op memory boundary.
+- Done: `ToolSource` boundary for future MCP support.
+- Done: Contract tests for providers, tools, permissions, context, sessions, and
   extension points.
+- Gap: CLI currently uses in-memory sessions; JSONL persistence should be exposed
+  through a CLI option or default `.citrus/sessions/` directory.
+
+Manual smoke status:
+
+- DeepSeek CLI call with configured project API key returned `citrus-ok`.
 
 ## V2: External Tools And MCP
 
@@ -60,4 +68,3 @@ Goal: make long-running project work observable, replayable, and learnable.
 - Provider-specific optimization such as caching or reasoning controls.
 - Web or TUI session viewer.
 - Remote execution backends.
-

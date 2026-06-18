@@ -31,8 +31,12 @@ def test_cli_run_uses_fake_provider() -> None:
     assert "hello" in result.output
 
 
-def test_cli_run_reports_missing_real_provider_key() -> None:
-    result = runner.invoke(app, ["run", "say hello", "--provider", "anthropic"])
+def test_cli_run_reports_missing_real_provider_key(tmp_path) -> None:
+    result = runner.invoke(
+        app,
+        ["run", "say hello", "--provider", "anthropic"],
+        env={"CITRUS_CONFIG": str(tmp_path / "missing.toml")},
+    )
 
     assert result.exit_code != 0
     assert "ANTHROPIC_API_KEY" in result.output
@@ -48,8 +52,12 @@ def test_cli_providers_lists_v1_providers() -> None:
     assert "fake" in result.output
 
 
-def test_cli_config_shows_environment_based_defaults() -> None:
-    result = runner.invoke(app, ["config"])
+def test_cli_config_shows_environment_based_defaults(tmp_path) -> None:
+    result = runner.invoke(
+        app,
+        ["config"],
+        env={"CITRUS_CONFIG": str(tmp_path / "missing.toml")},
+    )
 
     assert result.exit_code == 0
     assert "config=" in result.output

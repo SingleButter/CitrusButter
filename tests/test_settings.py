@@ -47,7 +47,7 @@ def test_build_provider_uses_deepseek_environment() -> None:
 
 def test_build_provider_explains_missing_key() -> None:
     with pytest.raises(ProviderSettingsError, match="ANTHROPIC_API_KEY"):
-        build_provider("anthropic", model="claude-test", env={})
+        build_provider("anthropic", model="claude-test", env={}, config=CitrusConfig())
 
 
 def test_build_provider_rejects_unknown_provider() -> None:
@@ -76,6 +76,46 @@ model = "gpt-provider-test"
     assert config.model == "gpt-test"
     assert config.providers["openai"].api_key == "config-key"
     assert config.providers["openai"].model == "gpt-provider-test"
+
+
+def test_load_config_prefers_project_local_file(tmp_path) -> None:
+    config_dir = tmp_path / ".citrus"
+    config_dir.mkdir()
+    config_path = config_dir / "config.toml"
+    config_path.write_text(
+        """
+provider = "anthropic"
+
+[providers.anthropic]
+api_key = "local-key"
+""",
+        encoding="utf-8",
+    )
+
+    config = load_config(env={}, cwd=tmp_path)
+
+    assert config.path == config_path
+    assert config.provider == "anthropic"
+    assert config.providers["anthropic"].api_key == "local-key"
+
+
+def test_explicit_config_path_overrides_project_local_file(tmp_path) -> None:
+    local_dir = tmp_path / ".citrus"
+    local_dir.mkdir()
+    (local_dir / "config.toml").write_text(
+        'provider = "anthropic"\n',
+        encoding="utf-8",
+    )
+    explicit_path = tmp_path / "other.toml"
+    explicit_path.write_text(
+        'provider = "openai"\n',
+        encoding="utf-8",
+    )
+
+    config = load_config(env={"CITRUS_CONFIG": str(explicit_path)}, cwd=tmp_path)
+
+    assert config.path == explicit_path
+    assert config.provider == "openai"
 
 
 def test_load_config_returns_defaults_when_file_is_missing(tmp_path) -> None:
