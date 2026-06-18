@@ -25,6 +25,7 @@ ContentBlock = TextBlock | ToolCallBlock
 class Message(BaseModel):
     role: Literal["system", "user", "assistant", "tool"]
     content: list[ContentBlock]
+    tool_call_id: str | None = None
 
     @classmethod
     def user_text(cls, text: str) -> "Message":
@@ -40,7 +41,11 @@ class Message(BaseModel):
 
     @classmethod
     def tool_text(cls, tool_call_id: str, text: str) -> "Message":
-        return cls(role="tool", content=[TextBlock(text=text)])
+        return cls(
+            role="tool",
+            content=[TextBlock(text=text)],
+            tool_call_id=tool_call_id,
+        )
 
     def text(self) -> str:
         return "\n".join(

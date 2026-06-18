@@ -43,6 +43,8 @@ def test_runtime_executes_tool_call_and_records_events(tmp_path: Path) -> None:
     assert result.final_message == "wrote note.txt"
     assert provider.requests[0].tools[0].name == "read_file"
     assert provider.requests[0].tools[1].name == "write_file"
+    assert provider.requests[1].messages[-1].tool_call_id == "call-1"
+    assert provider.requests[1].messages[-1].text() == "Wrote note.txt"
     assert target.read_text() == "hello"
     assert [event.type for event in sessions.load(result.session_id)] == [
         EventType.TASK_STARTED,

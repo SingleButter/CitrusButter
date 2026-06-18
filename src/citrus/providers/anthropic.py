@@ -58,6 +58,6 @@ class AnthropicProvider:
         }
 
     def _build_client(self) -> Any:
-        from anthropic import Anthropic  # type: ignore[import-not-found]
+        from anthropic import Anthropic
 
         return Anthropic(api_key=self.api_key)

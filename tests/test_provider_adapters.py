@@ -6,7 +6,7 @@ from citrus.providers.anthropic import AnthropicProvider
 from citrus.providers.base import ModelRequest, ToolSpec
 from citrus.providers.deepseek import DeepSeekProvider
 from citrus.providers.openai import OpenAIProvider
-from citrus.runtime.messages import Message
+from citrus.runtime.messages import Message, ToolCall
 
 
 class _ProviderMetadata(Protocol):
@@ -140,6 +140,53 @@ def test_openai_provider_maps_tools_and_tool_calls() -> None:
     assert response.messages[0].tool_calls()[0].arguments == {
         "path": "note.txt",
         "content": "hello",
+    }
+
+
+def test_openai_provider_maps_tool_results_with_tool_call_id() -> None:
+    client = _OpenAIClient()
+    provider = OpenAIProvider(api_key="test-key", model="gpt-test", client=client)
+
+    provider.complete(
+        ModelRequest(
+            messages=[
+                Message.user_text("write"),
+                Message.assistant_tool_call(
+                    ToolCall(
+                        id="call-1",
+                        name="write_file",
+                        arguments={"path": "note.txt", "content": "hello"},
+                    )
+                ),
+                Message.tool_text("call-1", "Wrote note.txt"),
+            ],
+        )
+    )
+
+    assert client.completions.request == {
+        "model": "gpt-test",
+        "messages": [
+            {"role": "user", "content": "write"},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call-1",
+                        "type": "function",
+                        "function": {
+                            "name": "write_file",
+                            "arguments": '{"path": "note.txt", "content": "hello"}',
+                        },
+                    }
+                ],
+            },
+            {
+                "role": "tool",
+                "tool_call_id": "call-1",
+                "content": "Wrote note.txt",
+            },
+        ],
     }
 
 
