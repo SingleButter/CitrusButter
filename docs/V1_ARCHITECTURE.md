@@ -15,15 +15,17 @@ extension points for future memory, MCP, hooks, sandboxing, and evaluation.
 V1 is implemented in the current codebase. Verified capabilities:
 
 - `AgentRuntime` executes a turn loop with model requests, tool calls,
-  permission decisions, and session events.
+  permission decisions, optional approval callbacks, and session events.
 - CLI commands `run`, `providers`, and `config` are available.
 - Project-local `.citrus/config.toml` is supported and ignored by git.
 - Anthropic, OpenAI, DeepSeek, and Fake providers share the same
   `ModelProvider` interface.
 - OpenAI-compatible providers, including DeepSeek, map internal messages,
-  tool schemas, and tool-call responses through adapter code.
+  tool schemas, assistant tool calls, and tool-result messages with
+  `tool_call_id` through adapter code.
 - Local tools support workspace-scoped file read, file write, text search, and
-  shell command execution.
+  shell command execution, returning `ToolResult.tool_call_id` so provider
+  adapters can correlate tool responses.
 - `InMemorySessionStore` and `JsonlSessionStore` are implemented.
 - CLI currently uses `InMemorySessionStore`; JSONL session persistence is an SDK
   capability but not yet the CLI default.
@@ -33,7 +35,7 @@ V1 is implemented in the current codebase. Verified capabilities:
 Current verification:
 
 ```text
-.venv/bin/pytest      46 passed
+.venv/bin/pytest      55 passed
 .venv/bin/ruff check  All checks passed
 .venv/bin/mypy src    Success
 ```
@@ -68,7 +70,8 @@ flowchart TD
 
   Runtime --> Provider["ModelProvider"]
   Runtime --> Tools["ToolRegistry"]
-  Runtime --> Permission["PermissionPolicy"]
+  Runtime --> Permission["GradedPermissionPolicy"]
+  Runtime --> Approver["PermissionApprover"]
   Runtime --> Context["ContextBuilder"]
   Runtime --> Session["SessionStore"]
   Runtime --> Memory["MemoryService"]
@@ -158,9 +161,10 @@ class AgentRuntime:
         self,
         provider: ModelProvider,
         tools: ToolRegistry,
-        permissions: PermissionPolicy,
+        permissions: GradedPermissionPolicy,
         context: ContextBuilder,
         session_store: SessionStore,
+        permission_approver: PermissionApprover | None = None,
         memory: MemoryService | None = None,
         observers: list[RuntimeObserver] | None = None,
     ) -> None:
@@ -182,6 +186,7 @@ between this internal format and external APIs.
 class Message(BaseModel):
     role: Literal["system", "user", "assistant", "tool"]
     content: list[ContentBlock]
+    tool_call_id: str | None = None
 
 
 class ToolCall(BaseModel):
@@ -281,27 +286,42 @@ V1 may define this interface without implementing a real MCP client.
 Permissions are enforced before risky tool execution.
 
 ```python
-class PermissionPolicy(Protocol):
-    def evaluate(self, request: PermissionRequest) -> PermissionDecision:
-        ...
+class PermissionDecision(BaseModel):
+    outcome: Literal["allow", "deny", "ask"]
+    reason: str
+
+
+class PermissionRequest(BaseModel):
+    tool_name: str
+    tool_call_id: str
+    arguments: dict[str, object]
+    reason: str
+    command: str | None = None
+
+
+PermissionApprover = Callable[[PermissionRequest], PermissionDecision]
 ```
 
 Default V1 policy:
 
 - File reads: allow by default.
-- File writes: require approval unless explicitly configured.
-- Shell commands: classify by risk and require approval for non-trivial
-  commands.
-- Dangerous commands: deny or require explicit confirmation.
+- File writes: return `ask`.
+- Shell commands: deny obviously dangerous commands and return `ask` for other
+  shell execution.
+- Unknown tools: return `ask`.
 
-```python
-class PermissionDecision(BaseModel):
-    outcome: Literal["allow", "deny", "ask"]
-    reason: str
-```
+`AgentRuntime` resolves `ask` decisions in one place:
 
-The permission system belongs to runtime-level execution, not individual tools
-alone.
+- `auto_approve=True` converts `ask` to `allow` for tests and scripted demos.
+- If a `PermissionApprover` is configured, runtime calls it with the tool name,
+  tool call id, arguments, reason, and optional shell command.
+- If no approver is configured, runtime safely denies the tool.
+- If an approver returns `ask` again, runtime treats the unresolved approval as
+  denied instead of looping.
+
+The CLI provides a Typer-based approver for `citrus run`, so write and shell
+requests require explicit user confirmation. The permission system belongs to
+runtime-level execution, not individual tools alone.
 
 ## Context System
 
@@ -309,25 +329,18 @@ alone.
 
 ```python
 class ContextBuilder:
-    def build(self, request: ContextRequest) -> list[Message]:
-        ...
+    def build(self, task: str) -> list[Message]:
+        return [Message.user_text(task)]
 ```
 
-V1 context sources:
+V1 context currently includes only the user task. Current workspace summaries,
+selected file snippets, tool result summaries, and memory context are future
+`ContextSource` additions rather than V1 behavior.
 
-- User task.
-- Current workspace summary.
-- Selected file snippets.
-- Tool result summary.
-- Memory context, if enabled.
-
-Future retrieval can be added through `ContextSource`.
-
-```python
-class ContextSource(Protocol):
-    def collect(self, request: ContextRequest) -> list[ContextItem]:
-        ...
-```
+Future retrieval can be added through a `ContextSource`-style interface. That
+interface is not implemented in V1; the likely shape is a small protocol that
+accepts the task and workspace metadata and returns additional `Message` or
+context items for `ContextBuilder` to include.
 
 ## Memory System
 
@@ -341,7 +354,7 @@ Memory is not the same as session history:
 
 ```python
 class MemoryStore(Protocol):
-    def search(self, query: MemoryQuery) -> list[MemoryItem]:
+    def search(self, query: str) -> list[MemoryItem]:
         ...
 
     def put(self, item: MemoryItem) -> None:
@@ -350,7 +363,7 @@ class MemoryStore(Protocol):
 
 ```python
 class MemoryService:
-    def retrieve_for_task(self, task: str, workspace: Path) -> list[MemoryItem]:
+    def retrieve_for_task(self, task: str) -> list[MemoryItem]:
         ...
 
     def propose_updates(self, events: list[SessionEvent]) -> list[MemoryCandidate]:
@@ -360,7 +373,6 @@ class MemoryService:
 V1 implementation:
 
 - `NoopMemoryStore`
-- Optional `InMemoryStore` for tests
 
 Future memory systems should attach as:
 
@@ -439,7 +451,8 @@ A future extension is healthy if it follows this pattern:
 - Memory backend: add a `MemoryStore`.
 - Hooks or eval: add a `RuntimeObserver`.
 - New context behavior: add a `ContextSource`.
-- New approval behavior: add a `PermissionPolicy`.
+- New approval behavior: provide a `PermissionApprover` or replace
+  `GradedPermissionPolicy`.
 
 The preferred change shape is:
 
@@ -461,7 +474,8 @@ Required test groups:
 
 - Provider contract tests with `FakeProvider`.
 - Tool contract tests for local tools.
-- Permission policy tests for read, write, shell, and denied actions.
+- Permission tests for read, write, shell, denied actions, CLI prompts,
+  approver allow/deny decisions, missing approvers, and unresolved approvals.
 - Context builder tests for deterministic context assembly.
 - Runtime integration tests using fake model responses and fake tool calls.
 - CLI smoke tests for `run`, `providers`, and `config`.
@@ -475,7 +489,8 @@ V1 is complete when:
 - `citrus run` can complete a small local coding task.
 - Anthropic, OpenAI, DeepSeek, and Fake providers share one internal provider
   interface.
-- File and shell tools run through permission checks.
+- File and shell tools run through permission checks and approval callbacks
+  for `ask` decisions.
 - Sessions record structured runtime events.
 - Memory has stable interfaces and a no-op implementation.
 - MCP has a documented `ToolSource` extension path.

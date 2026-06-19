@@ -15,13 +15,15 @@ Goal: build the smallest useful coding harness with stable extension boundaries.
 - Done: Project-local `.citrus/config.toml` with env and CLI overrides.
 - Done: Local tools: read file, write file, search files, run shell.
 - Done: Permission policy for reads, writes, and shell commands.
+- Done: Runtime `PermissionApprover` callback and CLI approval prompt for
+  `ask` decisions.
 - Done: Lightweight context builder.
 - Done: Structured session event stream.
 - Done: In-memory and JSONL session stores.
 - Done: No-op memory boundary.
 - Done: `ToolSource` boundary for future MCP support.
-- Done: Contract tests for providers, tools, permissions, context, sessions, and
-  extension points.
+- Done: Contract tests for providers, tools, permissions, CLI approval prompts,
+  context, sessions, and extension points.
 - Gap: CLI currently uses in-memory sessions; JSONL persistence should be exposed
   through a CLI option or default `.citrus/sessions/` directory.
 
@@ -48,7 +50,8 @@ Goal: improve local execution safety and task isolation.
 - Add safer shell execution profiles.
 - Consider git worktree or temporary workspace support.
 - Add rollback or diff review workflow for file edits.
-- Expand permission tests around destructive actions.
+- Add richer permission profiles around destructive actions, command allowlists,
+  and per-workspace approval policy.
 
 ## V4: Memory, Hooks, And Evaluation
 

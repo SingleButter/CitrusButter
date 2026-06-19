@@ -11,7 +11,7 @@ The first version focuses on a lightweight but real foundation:
 - Runtime-kernel architecture
 - Anthropic, OpenAI, DeepSeek, and Fake provider adapters
 - Local coding tools for file reads, file writes, search, and shell commands
-- Permission checks before risky tool execution
+- Permission checks and CLI approval prompts before risky tool execution
 - JSONL and in-memory session stores
 - Memory and ToolSource extension boundaries
 - Test-first implementation workflow with `pytest`, `ruff`, and `mypy`
@@ -27,13 +27,13 @@ V1 is implemented and verified. The current CLI can:
 - Run deterministic fake-provider smoke tests.
 - Instantiate Anthropic, OpenAI, and DeepSeek providers from config or
   environment variables.
-- Execute the runtime loop with local tools, permission checks, and structured
-  session events.
+- Execute the runtime loop with local tools, permission checks, interactive
+  approval for `ask` decisions, and structured session events.
 
 Latest verified checks:
 
 ```text
-.venv/bin/pytest      46 passed
+.venv/bin/pytest      55 passed
 .venv/bin/ruff check  All checks passed
 .venv/bin/mypy src    Success
 ```
@@ -134,7 +134,8 @@ flowchart TD
   CLI["citrus CLI"] --> Runtime["AgentRuntime"]
   Runtime --> Provider["ModelProvider"]
   Runtime --> Tools["ToolRegistry"]
-  Runtime --> Permission["PermissionPolicy"]
+  Runtime --> Permission["GradedPermissionPolicy"]
+  Runtime --> Approver["PermissionApprover"]
   Runtime --> Context["ContextBuilder"]
   Runtime --> Session["SessionStore"]
   Runtime --> Observer["RuntimeObserver"]
@@ -158,6 +159,7 @@ dependencies.
 from pathlib import Path
 
 from citrus.context.builder import ContextBuilder
+from citrus.permissions.base import PermissionDecision, PermissionRequest
 from citrus.permissions.policy import GradedPermissionPolicy
 from citrus.providers.base import ModelResponse
 from citrus.providers.fake import FakeProvider
@@ -166,12 +168,17 @@ from citrus.runtime.messages import Message
 from citrus.sessions.memory import InMemorySessionStore
 from citrus.tools.registry import ToolRegistry
 
+def approve(request: PermissionRequest) -> PermissionDecision:
+    return PermissionDecision(outcome="allow", reason=f"Approved {request.tool_name}")
+
+
 runtime = AgentRuntime(
     provider=FakeProvider([ModelResponse(messages=[Message.assistant_text("done")])]),
     tools=ToolRegistry.with_default_local_tools(),
-    permissions=GradedPermissionPolicy(auto_approve=True),
+    permissions=GradedPermissionPolicy(auto_approve=False),
     context=ContextBuilder(),
     session_store=InMemorySessionStore(),
+    permission_approver=approve,
 )
 
 result = runtime.run(RunRequest(task="inspect this project", workspace=Path.cwd()))
@@ -188,7 +195,9 @@ citrus config
 
 `citrus run` uses the SDK runtime. The fake provider is deterministic and useful
 for offline demos and tests. Real providers are selected with `--provider` and
-API keys from environment variables.
+API keys from environment variables. When the policy returns `ask`, the CLI
+prints the tool details and requires an explicit approval; pressing Enter keeps
+the safe default and denies the tool.
 
 ## Sessions
 
