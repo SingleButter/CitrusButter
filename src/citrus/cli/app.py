@@ -1,14 +1,16 @@
 import json
 import os
+import sys
 from typing import Annotated
 
 import typer
+from prompt_toolkit import prompt
 
 from citrus.config.settings import ProviderSettingsError, build_provider, load_config
 from citrus.context.builder import ContextBuilder
 from citrus.permissions.base import PermissionDecision, PermissionRequest
 from citrus.permissions.policy import GradedPermissionPolicy
-from citrus.providers.base import ModelResponse
+from citrus.providers.base import ModelProvider, ModelResponse
 from citrus.providers.fake import FakeProvider
 from citrus.runtime.agent import AgentRuntime, RunRequest
 from citrus.runtime.messages import Message
@@ -40,6 +42,46 @@ def _approve_permission(request: PermissionRequest) -> PermissionDecision:
     return PermissionDecision(outcome="deny", reason="Denied by user.")
 
 
+def _read_chat_input() -> str:
+    if not sys.stdin.isatty():
+        return input("citrus> ").strip()
+    return prompt("citrus> ").strip()
+
+
+def _build_selected_provider(
+    provider: str | None,
+    model: str | None,
+    fake_response: str,
+    repeat_fake: bool = False,
+) -> ModelProvider:
+    config = load_config(os.environ)
+    selected_provider_name = provider or config.provider
+    if selected_provider_name == "fake":
+        responses = [
+            ModelResponse(messages=[Message.assistant_text(fake_response)]),
+        ]
+        if repeat_fake:
+            return FakeProvider(responses=responses, repeat_last=True)
+        return FakeProvider(responses=responses)
+    return build_provider(
+        selected_provider_name,
+        model=model,
+        env=os.environ,
+        config=config,
+    )
+
+
+def _build_runtime(selected_provider: ModelProvider) -> AgentRuntime:
+    return AgentRuntime(
+        provider=selected_provider,
+        tools=ToolRegistry.with_default_local_tools(),
+        permissions=GradedPermissionPolicy(auto_approve=False),
+        permission_approver=_approve_permission,
+        context=ContextBuilder(),
+        session_store=InMemorySessionStore(),
+    )
+
+
 @app.command()
 def run(
     task: Annotated[
@@ -61,36 +103,69 @@ def run(
 ) -> None:
     """Run a coding-agent task."""
     try:
-        config = load_config(os.environ)
-        selected_provider_name = provider or config.provider
-        selected_provider = (
-            FakeProvider(
-                responses=[
-                    ModelResponse(messages=[Message.assistant_text(fake_response)]),
-                ]
-            )
-            if selected_provider_name == "fake"
-            else build_provider(
-                selected_provider_name,
-                model=model,
-                env=os.environ,
-                config=config,
-            )
+        selected_provider = _build_selected_provider(
+            provider=provider,
+            model=model,
+            fake_response=fake_response,
         )
     except ProviderSettingsError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from exc
 
-    runtime = AgentRuntime(
-        provider=selected_provider,
-        tools=ToolRegistry.with_default_local_tools(),
-        permissions=GradedPermissionPolicy(auto_approve=False),
-        permission_approver=_approve_permission,
-        context=ContextBuilder(),
-        session_store=InMemorySessionStore(),
-    )
+    runtime = _build_runtime(selected_provider)
     result = runtime.run(RunRequest(task=task))
     typer.echo(result.final_message)
+
+
+@app.command()
+def chat(
+    provider: Annotated[
+        str | None,
+        typer.Option(help="Provider to use. Defaults to config file."),
+    ] = None,
+    model: Annotated[
+        str | None,
+        typer.Option(help="Model override for real providers."),
+    ] = None,
+    fake_response: Annotated[
+        str,
+        typer.Option(help="Scripted response for the fake provider."),
+    ] = "CitrusButter fake provider completed the task.",
+) -> None:
+    """Start an interactive coding-agent chat session."""
+    try:
+        selected_provider = _build_selected_provider(
+            provider=provider,
+            model=model,
+            fake_response=fake_response,
+            repeat_fake=True,
+        )
+    except ProviderSettingsError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    runtime = _build_runtime(selected_provider)
+    messages: list[Message] = []
+    typer.echo("Starting CitrusButter chat. Type exit, quit, or :q to leave.")
+
+    while True:
+        try:
+            task = _read_chat_input()
+        except (EOFError, KeyboardInterrupt):
+            typer.echo()
+            typer.echo("Goodbye.")
+            return
+
+        if not task:
+            continue
+        if task.lower() in {"exit", "quit", ":q"}:
+            typer.echo("Goodbye.")
+            return
+
+        result = runtime.run(RunRequest(task=task, messages=messages))
+        typer.echo(result.final_message)
+        if result.success:
+            messages = result.messages
 
 
 @app.command()

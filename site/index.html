@@ -33,7 +33,7 @@
           <p class="hero-copy">
             一个工程化、模块化、可测试、可扩展的 coding agent runtime kernel。
             V1 已经具备真实 runtime loop、多模型 adapter、本地工具、权限审批、
-            session 事件流、memory 边界和 CLI 入口。
+            持续对话 CLI、session 事件流和 memory 边界。
           </p>
           <div class="hero-actions" aria-label="快速定位">
             <a href="#architecture">查看架构</a>
@@ -94,7 +94,7 @@
         <div class="architecture-board" aria-label="完整架构图">
           <div class="layer cli-layer">
             <span class="layer-label">Client</span>
-            <div class="arch-node primary">citrus CLI</div>
+            <div class="arch-node primary">citrus CLI<br /><span>run / chat</span></div>
           </div>
 
           <div class="connector down"></div>
@@ -161,13 +161,13 @@
             <div>
               <h3>CLI Layer</h3>
               <p>
-                `src/citrus/cli/app.py` 提供 `citrus run`、`citrus providers`、
-                `citrus config`。它不拥有业务逻辑，只负责解析参数、创建 provider、
-                组装 runtime，然后输出结果。
+                `src/citrus/cli/app.py` 提供 `citrus run`、`citrus chat`、
+                `citrus providers`、`citrus config`。它不拥有业务逻辑，只负责解析参数、
+                创建 provider、组装 runtime，然后输出一次性结果或持续对话。
               </p>
               <dl>
                 <dt>包含</dt>
-                <dd>Typer app、provider 选择、fake demo、配置展示。</dd>
+                <dd>Typer app、provider 选择、fake demo、持续 chat loop、配置展示。</dd>
                 <dt>交互</dt>
                 <dd>调用 `build_provider` 或 `FakeProvider`，再调用 `AgentRuntime.run()`。</dd>
               </dl>
@@ -303,8 +303,8 @@
           <p class="eyebrow">Runtime Flow</p>
           <h2 id="flow-title">组件之间如何交互</h2>
           <p>
-            一次 `citrus run` 会穿过 CLI、runtime、context、provider、permission、
-            tools 和 session event stream。下面是 V1 的真实交互路径。
+            一次 `citrus run` 或 `citrus chat` 的单轮输入会穿过 CLI、runtime、
+            context、provider、permission、tools 和 session event stream。下面是 V1 的真实交互路径。
           </p>
         </div>
 
@@ -315,8 +315,8 @@
               CLI 解析任务
             </button>
             <p>
-              `citrus run` 读取 provider、model、fake response 和环境变量，
-              通过 `build_provider` 或 `FakeProvider` 创建模型 adapter。
+              `citrus run` / `citrus chat` 读取 provider、model、fake response 和环境变量，
+              通过 `build_provider` 或 `FakeProvider` 创建模型 adapter；chat 会保留成功轮次的 messages。
             </p>
           </li>
           <li>
@@ -459,7 +459,7 @@
         </div>
         <div class="terminal" aria-label="验证命令">
           <pre><code>$ .venv/bin/pytest
-55 passed
+63 passed
 
 $ .venv/bin/ruff check .
 All checks passed!

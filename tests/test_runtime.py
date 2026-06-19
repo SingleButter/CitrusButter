@@ -321,3 +321,81 @@ def test_runtime_auto_approve_skips_permission_approver(tmp_path: Path) -> None:
     result = runtime.run(RunRequest(task="write a note", workspace=tmp_path))
 
     assert result.success is True
+
+
+
+def test_runtime_accepts_history_messages_and_returns_updated_messages(
+    tmp_path: Path,
+) -> None:
+    history = [
+        Message.user_text("first"),
+        Message.assistant_text("first answer"),
+    ]
+    provider = FakeProvider(
+        responses=[
+            ModelResponse(messages=[Message.assistant_text("second answer")]),
+        ]
+    )
+    runtime = AgentRuntime(
+        provider=provider,
+        tools=ToolRegistry.with_default_local_tools(),
+        permissions=GradedPermissionPolicy(auto_approve=False),
+        context=ContextBuilder(),
+        session_store=InMemorySessionStore(),
+    )
+
+    result = runtime.run(
+        RunRequest(task="second", workspace=tmp_path, messages=history)
+    )
+
+    assert result.success is True
+    assert [message.text() for message in provider.requests[0].messages] == [
+        "first",
+        "first answer",
+        "second",
+    ]
+    assert [message.text() for message in result.messages] == [
+        "first",
+        "first answer",
+        "second",
+        "second answer",
+    ]
+
+
+def test_runtime_returns_tool_result_messages_for_chat_history(
+    tmp_path: Path,
+) -> None:
+    provider = FakeProvider(
+        responses=[
+            ModelResponse(
+                messages=[
+                    Message.assistant_tool_call(
+                        ToolCall(
+                            id="call-1",
+                            name="write_file",
+                            arguments={"path": "note.txt", "content": "hello"},
+                        )
+                    )
+                ]
+            ),
+            ModelResponse(messages=[Message.assistant_text("done")]),
+        ]
+    )
+    runtime = AgentRuntime(
+        provider=provider,
+        tools=ToolRegistry.with_default_local_tools(),
+        permissions=GradedPermissionPolicy(auto_approve=True),
+        context=ContextBuilder(),
+        session_store=InMemorySessionStore(),
+    )
+
+    result = runtime.run(RunRequest(task="write", workspace=tmp_path))
+
+    assert result.success is True
+    assert [message.role for message in result.messages] == [
+        "user",
+        "assistant",
+        "tool",
+        "assistant",
+    ]
+    assert result.messages[2].tool_call_id == "call-1"

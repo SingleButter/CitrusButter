@@ -15,8 +15,9 @@ extension points for future memory, MCP, hooks, sandboxing, and evaluation.
 V1 is implemented in the current codebase. Verified capabilities:
 
 - `AgentRuntime` executes a turn loop with model requests, tool calls,
-  permission decisions, optional approval callbacks, and session events.
-- CLI commands `run`, `providers`, and `config` are available.
+  permission decisions, optional approval callbacks, session events, and
+  process-local message history for interactive chat.
+- CLI commands `run`, `chat`, `providers`, and `config` are available.
 - Project-local `.citrus/config.toml` is supported and ignored by git.
 - Anthropic, OpenAI, DeepSeek, and Fake providers share the same
   `ModelProvider` interface.
@@ -35,7 +36,7 @@ V1 is implemented in the current codebase. Verified capabilities:
 Current verification:
 
 ```text
-.venv/bin/pytest      55 passed
+.venv/bin/pytest      63 passed
 .venv/bin/ruff check  All checks passed
 .venv/bin/mypy src    Success
 ```
@@ -156,6 +157,21 @@ calls, permission checks, context assembly, session recording, memory hooks, and
 observers.
 
 ```python
+class RunRequest(BaseModel):
+    task: str
+    workspace: Path = Field(default_factory=Path.cwd)
+    session_id: str | None = None
+    max_turns: int = 8
+    messages: list[Message] = Field(default_factory=list)
+
+
+class RunResult(BaseModel):
+    session_id: str
+    success: bool
+    final_message: str
+    messages: list[Message] = Field(default_factory=list)
+
+
 class AgentRuntime:
     def __init__(
         self,
@@ -175,7 +191,9 @@ class AgentRuntime:
 ```
 
 `AgentRuntime` should not know provider-specific APIs, concrete tool
-implementations, memory storage details, or CLI behavior.
+implementations, memory storage details, or CLI behavior. Interactive clients
+preserve context by passing `RunResult.messages` from a successful turn into the
+next `RunRequest.messages`.
 
 ## Internal Message Model
 
@@ -426,6 +444,7 @@ The CLI is a first-party client of the SDK.
 
 ```bash
 citrus run "add tests for the parser"
+citrus chat
 citrus providers
 citrus config
 ```
@@ -434,7 +453,9 @@ CLI commands should call SDK APIs instead of owning business logic.
 
 V1 commands:
 
-- `citrus run`: execute a coding task.
+- `citrus run`: execute one coding task and exit.
+- `citrus chat`: keep a process-local conversation open until `exit`, `quit`,
+  or `:q`.
 - `citrus providers`: show configured providers.
 - `citrus config`: manage simple defaults.
 
@@ -478,7 +499,7 @@ Required test groups:
   approver allow/deny decisions, missing approvers, and unresolved approvals.
 - Context builder tests for deterministic context assembly.
 - Runtime integration tests using fake model responses and fake tool calls.
-- CLI smoke tests for `run`, `providers`, and `config`.
+- CLI smoke tests for `run`, `chat`, `providers`, and `config`.
 - Extension contract tests proving new providers, tools, memory stores, and
   observers can attach without runtime changes.
 
@@ -487,6 +508,7 @@ Required test groups:
 V1 is complete when:
 
 - `citrus run` can complete a small local coding task.
+- `citrus chat` can preserve successful in-process model context across turns.
 - Anthropic, OpenAI, DeepSeek, and Fake providers share one internal provider
   interface.
 - File and shell tools run through permission checks and approval callbacks

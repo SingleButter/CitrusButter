@@ -24,12 +24,14 @@ class RunRequest(BaseModel):
     workspace: Path = Field(default_factory=Path.cwd)
     session_id: str | None = None
     max_turns: int = 8
+    messages: list[Message] = Field(default_factory=list)
 
 
 class RunResult(BaseModel):
     session_id: str
     success: bool
     final_message: str
+    messages: list[Message] = Field(default_factory=list)
 
 
 class AgentRuntime:
@@ -58,7 +60,8 @@ class AgentRuntime:
         workspace = request.workspace.resolve()
 
         self._emit(session_id, EventType.TASK_STARTED, {"task": request.task})
-        messages = self._context.build(task=request.task)
+        messages = list(request.messages)
+        messages.extend(self._context.build(task=request.task))
         self._emit(session_id, EventType.CONTEXT_BUILT, {"messages": len(messages)})
 
         for _turn in range(request.max_turns):
@@ -85,6 +88,7 @@ class AgentRuntime:
                     session_id=session_id,
                     success=True,
                     final_message=final_message,
+                    messages=messages,
                 )
 
             for tool_call in tool_calls:
@@ -100,6 +104,7 @@ class AgentRuntime:
                         session_id=session_id,
                         success=False,
                         final_message=final_message,
+                        messages=messages,
                     )
                 messages.append(Message.tool_text(tool_call.id, tool_result.content))
 
@@ -109,6 +114,7 @@ class AgentRuntime:
             session_id=session_id,
             success=False,
             final_message=final_message,
+            messages=messages,
         )
 
     def _execute_tool_call(

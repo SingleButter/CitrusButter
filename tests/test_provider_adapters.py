@@ -3,8 +3,9 @@ from typing import Protocol
 import pytest
 
 from citrus.providers.anthropic import AnthropicProvider
-from citrus.providers.base import ModelRequest, ToolSpec
+from citrus.providers.base import ModelRequest, ModelResponse, ToolSpec
 from citrus.providers.deepseek import DeepSeekProvider
+from citrus.providers.fake import FakeProvider
 from citrus.providers.openai import OpenAIProvider
 from citrus.runtime.messages import Message, ToolCall
 
@@ -302,3 +303,19 @@ def test_anthropic_provider_maps_tools_and_tool_uses() -> None:
         "path": "note.txt",
         "content": "hello",
     }
+
+
+
+def test_fake_provider_can_repeat_last_response() -> None:
+    provider = FakeProvider(
+        responses=[
+            ModelResponse(messages=[Message.assistant_text("again")]),
+        ],
+        repeat_last=True,
+    )
+
+    first = provider.complete(ModelRequest(messages=[Message.user_text("one")]))
+    second = provider.complete(ModelRequest(messages=[Message.user_text("two")]))
+
+    assert first.messages[0].text() == "again"
+    assert second.messages[0].text() == "again"

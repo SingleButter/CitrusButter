@@ -8,7 +8,7 @@ documentation.
 
 Goal: build the smallest useful coding harness with stable extension boundaries.
 
-- Done: Python package and `citrus` CLI.
+- Done: Python package and `citrus` CLI with `run` and process-local `chat` modes.
 - Done: `AgentRuntime` loop.
 - Done: Internal message, tool call, and tool result models.
 - Done: Anthropic, OpenAI, DeepSeek, and Fake providers.
@@ -17,13 +17,15 @@ Goal: build the smallest useful coding harness with stable extension boundaries.
 - Done: Permission policy for reads, writes, and shell commands.
 - Done: Runtime `PermissionApprover` callback and CLI approval prompt for
   `ask` decisions.
+- Done: Interactive `citrus chat` command with shared in-process model context
+  and `exit` / `quit` / `:q` shutdown commands.
 - Done: Lightweight context builder.
 - Done: Structured session event stream.
 - Done: In-memory and JSONL session stores.
 - Done: No-op memory boundary.
 - Done: `ToolSource` boundary for future MCP support.
 - Done: Contract tests for providers, tools, permissions, CLI approval prompts,
-  context, sessions, and extension points.
+  interactive chat context, sessions, and extension points.
 - Gap: CLI currently uses in-memory sessions; JSONL persistence should be exposed
   through a CLI option or default `.citrus/sessions/` directory.
 

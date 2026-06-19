@@ -6,7 +6,7 @@ permissions, context, memory, sessions, and future MCP support.
 
 The first version focuses on a lightweight but real foundation:
 
-- `citrus` CLI entry point
+- `citrus` CLI entry point with one-shot and interactive modes
 - Python SDK package under `citrus`
 - Runtime-kernel architecture
 - Anthropic, OpenAI, DeepSeek, and Fake provider adapters
@@ -25,6 +25,8 @@ V1 is implemented and verified. The current CLI can:
 
 - Read project-local configuration from `.citrus/config.toml`.
 - Run deterministic fake-provider smoke tests.
+- Start a process-local `citrus chat` session that keeps model context across
+  turns until `exit`, `quit`, or `:q`.
 - Instantiate Anthropic, OpenAI, and DeepSeek providers from config or
   environment variables.
 - Execute the runtime loop with local tools, permission checks, interactive
@@ -33,7 +35,7 @@ V1 is implemented and verified. The current CLI can:
 Latest verified checks:
 
 ```text
-.venv/bin/pytest      55 passed
+.venv/bin/pytest      63 passed
 .venv/bin/ruff check  All checks passed
 .venv/bin/mypy src    Success
 ```
@@ -56,6 +58,7 @@ citrus-ok
 uv sync --extra dev
 uv run citrus --help
 uv run citrus run "say hello" --provider fake --fake-response "hello"
+uv run citrus chat --provider fake --fake-response "hello"
 ```
 
 For real providers, set the relevant API key and choose a provider:
@@ -189,15 +192,20 @@ print(result.final_message)
 
 ```bash
 citrus run "add tests for the parser"
+citrus chat
 citrus providers
 citrus config
 ```
 
-`citrus run` uses the SDK runtime. The fake provider is deterministic and useful
-for offline demos and tests. Real providers are selected with `--provider` and
-API keys from environment variables. When the policy returns `ask`, the CLI
-prints the tool details and requires an explicit approval; pressing Enter keeps
-the safe default and denies the tool.
+`citrus run` uses the SDK runtime for a single task. `citrus chat` uses the
+same runtime dependencies but keeps the successful model messages in memory
+between prompts, so each new input can build on prior user, assistant, and tool
+messages. Type `exit`, `quit`, or `:q` to leave the chat session.
+
+The fake provider is deterministic and useful for offline demos and tests. Real
+providers are selected with `--provider` and API keys from environment variables.
+When the policy returns `ask`, the CLI prints the tool details and requires an
+explicit approval; pressing Enter keeps the safe default and denies the tool.
 
 ## Sessions
 
