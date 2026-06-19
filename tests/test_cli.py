@@ -1,6 +1,10 @@
+from pathlib import Path
+
 from typer.testing import CliRunner
 
 from citrus.cli.app import app
+from citrus.providers.base import ModelRequest, ModelResponse
+from citrus.runtime.messages import Message, ToolCall
 
 runner = CliRunner()
 
@@ -106,3 +110,90 @@ api_key = "config-key"
     result = runner.invoke(app, ["run", "say hello"])
 
     assert result.exit_code != 2
+
+
+def test_cli_run_prompts_for_ask_permission_and_allows_tool(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    class ToolCallingFakeProvider:
+        name = "fake"
+
+        def __init__(self, responses):
+            self._responses = [
+                ModelResponse(
+                    messages=[
+                        Message.assistant_tool_call(
+                            ToolCall(
+                                id="call-1",
+                                name="write_file",
+                                arguments={"path": "note.txt", "content": "hello"},
+                            )
+                        )
+                    ]
+                ),
+                ModelResponse(messages=[Message.assistant_text("done")]),
+            ]
+            self._index = 0
+            self.requests: list[ModelRequest] = []
+
+        def complete(self, request: ModelRequest) -> ModelResponse:
+            self.requests.append(request)
+            response = self._responses[self._index]
+            self._index += 1
+            return response
+
+    monkeypatch.setattr("citrus.cli.app.FakeProvider", ToolCallingFakeProvider)
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        app,
+        ["run", "write note", "--provider", "fake"],
+        input="y\n",
+    )
+    written = Path("note.txt").read_text()
+
+    assert result.exit_code == 0
+    assert "Allow tool write_file?" in result.output
+    assert "done" in result.output
+    assert written == "hello"
+
+
+def test_cli_run_prompts_for_ask_permission_and_denies_by_default(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    class ToolCallingFakeProvider:
+        name = "fake"
+
+        def __init__(self, responses):
+            self._responses = [
+                ModelResponse(
+                    messages=[
+                        Message.assistant_tool_call(
+                            ToolCall(
+                                id="call-1",
+                                name="write_file",
+                                arguments={"path": "note.txt", "content": "hello"},
+                            )
+                        )
+                    ]
+                )
+            ]
+            self._index = 0
+
+        def complete(self, request: ModelRequest) -> ModelResponse:
+            response = self._responses[self._index]
+            self._index += 1
+            return response
+
+    monkeypatch.setattr("citrus.cli.app.FakeProvider", ToolCallingFakeProvider)
+
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["run", "write note", "--provider", "fake"], input="\n")
+    exists = Path("note.txt").exists()
+
+    assert result.exit_code == 0
+    assert "Allow tool write_file?" in result.output
+    assert "denied" in result.output.lower()
+    assert exists is False

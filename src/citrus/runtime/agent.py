@@ -5,6 +5,11 @@ from pydantic import BaseModel, Field
 
 from citrus.context.builder import ContextBuilder
 from citrus.memory.service import MemoryService
+from citrus.permissions.base import (
+    PermissionApprover,
+    PermissionDecision,
+    PermissionRequest,
+)
 from citrus.permissions.policy import GradedPermissionPolicy
 from citrus.providers.base import ModelProvider, ModelRequest, ToolSpec
 from citrus.runtime.events import EventType, RuntimeObserver, SessionEvent
@@ -35,12 +40,14 @@ class AgentRuntime:
         permissions: GradedPermissionPolicy,
         context: ContextBuilder,
         session_store: SessionStore,
+        permission_approver: PermissionApprover | None = None,
         memory: MemoryService | None = None,
         observers: list[RuntimeObserver] | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
         self._permissions = permissions
+        self._permission_approver = permission_approver
         self._context = context
         self._session_store = session_store
         self._memory = memory
@@ -121,8 +128,12 @@ class AgentRuntime:
             tool_call.name,
             command=command if isinstance(command, str) else None,
         )
-        if decision.outcome == "ask" and self._permissions.auto_approve:
-            decision = decision.model_copy(update={"outcome": "allow"})
+        if decision.outcome == "ask":
+            decision = self._resolve_ask_permission(
+                decision,
+                tool_call,
+                command=command if isinstance(command, str) else None,
+            )
         self._emit(
             session_id,
             EventType.PERMISSION_RESOLVED,
@@ -150,6 +161,43 @@ class AgentRuntime:
             },
         )
         return tool_result
+
+    def _resolve_ask_permission(
+        self,
+        decision: PermissionDecision,
+        tool_call: ToolCall,
+        command: str | None,
+    ) -> PermissionDecision:
+        if self._permissions.auto_approve:
+            return decision.model_copy(update={"outcome": "allow"})
+
+        if self._permission_approver is None:
+            return PermissionDecision(
+                outcome="deny",
+                reason=(
+                    f"Approval required for tool {tool_call.name}, "
+                    "but no permission approver is configured."
+                ),
+            )
+
+        resolved = self._permission_approver(
+            PermissionRequest(
+                tool_name=tool_call.name,
+                tool_call_id=tool_call.id,
+                arguments=tool_call.arguments,
+                reason=decision.reason,
+                command=command,
+            )
+        )
+        if resolved.outcome == "ask":
+            return PermissionDecision(
+                outcome="deny",
+                reason=(
+                    f"Approval unresolved for tool {tool_call.name}: "
+                    f"{resolved.reason}"
+                ),
+            )
+        return resolved
 
     def _emit(
         self,

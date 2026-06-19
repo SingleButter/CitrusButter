@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Annotated
 
@@ -5,6 +6,7 @@ import typer
 
 from citrus.config.settings import ProviderSettingsError, build_provider, load_config
 from citrus.context.builder import ContextBuilder
+from citrus.permissions.base import PermissionDecision, PermissionRequest
 from citrus.permissions.policy import GradedPermissionPolicy
 from citrus.providers.base import ModelResponse
 from citrus.providers.fake import FakeProvider
@@ -17,6 +19,25 @@ app = typer.Typer(
     help="CitrusButter: a modular coding agent harness.",
     no_args_is_help=True,
 )
+
+
+def _approve_permission(request: PermissionRequest) -> PermissionDecision:
+    typer.echo(f"Tool {request.tool_name} requires approval.")
+    typer.echo(f"Reason: {request.reason}")
+    if request.command:
+        typer.echo(f"Command: {request.command}")
+    else:
+        arguments = json.dumps(
+            request.arguments,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        typer.echo(f"Arguments: {arguments}")
+
+    approved = typer.confirm(f"Allow tool {request.tool_name}?", default=False)
+    if approved:
+        return PermissionDecision(outcome="allow", reason="Approved by user.")
+    return PermissionDecision(outcome="deny", reason="Denied by user.")
 
 
 @app.command()
@@ -64,6 +85,7 @@ def run(
         provider=selected_provider,
         tools=ToolRegistry.with_default_local_tools(),
         permissions=GradedPermissionPolicy(auto_approve=False),
+        permission_approver=_approve_permission,
         context=ContextBuilder(),
         session_store=InMemorySessionStore(),
     )
