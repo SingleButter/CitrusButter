@@ -6,7 +6,7 @@ window.CITRUS_SOURCE_FILES = [
     "symbols": [
       "__version__"
     ],
-    "content": "\"\"\"CitrusButter public package.\"\"\"\n\n__version__ = \"0.1.0\"\n\n"
+    "content": "\"\"\"CitrusButter public package.\"\"\"\n\n__version__ = \"1.0.0\"\n"
   },
   {
     "group": "cli",

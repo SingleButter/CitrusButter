@@ -1,6 +1,6 @@
 [project]
 name = "citrus-butter"
-version = "0.1.0"
+version = "1.0.0"
 description = "A modular Python SDK and CLI coding agent harness."
 readme = "README.md"
 requires-python = ">=3.11"
