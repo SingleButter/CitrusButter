@@ -60,11 +60,15 @@ class AgentRuntime:
         workspace = request.workspace.resolve()
 
         self._emit(session_id, EventType.TASK_STARTED, {"task": request.task})
-        messages = list(request.messages)
-        messages.extend(self._context.build(task=request.task))
+        messages = self._context.build(
+            task=request.task,
+            messages=request.messages,
+            workspace=workspace,
+        )
         self._emit(session_id, EventType.CONTEXT_BUILT, {"messages": len(messages)})
 
         for _turn in range(request.max_turns):
+            messages = self._context.prepare_for_model(messages)
             self._emit(session_id, EventType.MODEL_REQUESTED, {})
             response = self._provider.complete(
                 ModelRequest(messages=messages, tools=self._tool_specs())

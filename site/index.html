@@ -33,7 +33,7 @@
           <p class="hero-copy">
             一个工程化、模块化、可测试、可扩展的 coding agent runtime kernel。
             V1 已经具备真实 runtime loop、多模型 adapter、本地工具、权限审批、
-            持续对话 CLI、session 事件流和 memory 边界。
+            持续对话 CLI、session 事件流和 memory 边界。V2 从 context compaction 开始。
           </p>
           <div class="hero-actions" aria-label="快速定位">
             <a href="#architecture">查看架构</a>
@@ -250,14 +250,15 @@
             <div>
               <h3>Context Builder</h3>
               <p>
-                V1 的 context deliberately small：先把用户任务转换成内部 message。
-                这个模块是未来检索、repo summary、memory context 和 tool result summary 的入口。
+                V2 的 context 从用户任务和成功 chat history 组装 active messages，
+                并在每次 provider 调用前做 deterministic compaction。
+                这个模块也是未来 repo summary、memory context 和 source 注入的入口。
               </p>
               <dl>
                 <dt>包含</dt>
-                <dd>`ContextBuilder.build(task)` 与内部 `Message` 输出。</dd>
+                <dd>`ContextBuilder`、`ContextCompactor`、pair-safe active context。</dd>
                 <dt>交互</dt>
-                <dd>runtime 每次任务开始先调用它，provider 只看到统一后的 messages。</dd>
+                <dd>runtime 在 run 开始组装 context，并在每次 provider call 前准备 messages。</dd>
               </dl>
             </div>
           </article>

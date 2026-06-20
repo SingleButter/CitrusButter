@@ -33,7 +33,26 @@ Manual smoke status:
 
 - DeepSeek CLI call with configured project API key returned `citrus-ok`.
 
-## V2: External Tools And MCP
+## V2: Context Management And Compaction
+
+Goal: make multi-turn chat context bounded and extensible without changing the
+agent loop ownership model.
+
+- Done: `ContextBuilder` can assemble prior active messages plus the current
+  user task for each runtime request.
+- Done: `ContextCompactor` runs before every provider call and keeps active
+  messages deterministic, pair-safe, and bounded.
+- Done: Old large tool results can be compacted while preserving
+  `tool_call_id`.
+- Done: Middle history can be snipped without splitting assistant tool calls
+  from matching tool results.
+- Done: Design notes explain how the interface can later support OpenCode-style
+  auto compact, NanoBot-style memory/context, and learn-claude-code-style
+  multi-layer compaction.
+- Next: Add `ContextSource` for repo summaries and selected memory notes.
+- Next: Add optional provider-aware token budgeting or LLM summary compaction.
+
+## V3: External Tools And MCP
 
 Goal: prove the tool system can import external capabilities without changing
 the runtime loop.
@@ -44,7 +63,7 @@ the runtime loop.
 - Add contract tests showing MCP tools and local tools share the same execution
   path.
 
-## V3: Workspace Safety
+## V4: Workspace Safety
 
 Goal: improve local execution safety and task isolation.
 
@@ -55,7 +74,7 @@ Goal: improve local execution safety and task isolation.
 - Add richer permission profiles around destructive actions, command allowlists,
   and per-workspace approval policy.
 
-## V4: Memory, Hooks, And Evaluation
+## V5: Memory, Hooks, And Evaluation
 
 Goal: make long-running project work observable, replayable, and learnable.
 

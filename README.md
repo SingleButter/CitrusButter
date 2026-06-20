@@ -32,6 +32,11 @@ V1 is implemented and verified. The current CLI can:
 - Execute the runtime loop with local tools, permission checks, interactive
   approval for `ask` decisions, and structured session events.
 
+V2 context work is in progress on top of V1. The current development tree adds
+`ContextBuilder` history assembly and a deterministic `ContextCompactor` that
+runs before provider calls, preserving tool-call/tool-result pairs while keeping
+active chat history bounded.
+
 Latest verified checks:
 
 ```text
@@ -231,6 +236,8 @@ uv run mypy src
 ## Project Docs
 
 - [V1 Architecture](docs/V1_ARCHITECTURE.md)
+- [V2 Context Architecture](docs/V2_CONTEXT_ARCHITECTURE.md)
+- [Context Builder And Compactor Design Thinking](docs/design-thinking/context-builder-and-compactor.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Runtime Kernel ADR](docs/ADR/0001-runtime-kernel.md)
 - [Memory Boundary ADR](docs/ADR/0002-memory-boundary.md)

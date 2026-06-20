@@ -399,3 +399,45 @@ def test_runtime_returns_tool_result_messages_for_chat_history(
         "assistant",
     ]
     assert result.messages[2].tool_call_id == "call-1"
+
+
+def test_runtime_prepares_context_before_each_provider_call(tmp_path: Path) -> None:
+    class CountingCompactor:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def compact(self, messages: list[Message]) -> list[Message]:
+            self.calls += 1
+            return list(messages)
+
+    compactor = CountingCompactor()
+    provider = FakeProvider(
+        responses=[
+            ModelResponse(
+                messages=[
+                    Message.assistant_tool_call(
+                        ToolCall(
+                            id="call-1",
+                            name="write_file",
+                            arguments={"path": "note.txt", "content": "hello"},
+                        )
+                    )
+                ]
+            ),
+            ModelResponse(messages=[Message.assistant_text("done")]),
+        ]
+    )
+    runtime = AgentRuntime(
+        provider=provider,
+        tools=ToolRegistry.with_default_local_tools(),
+        permissions=GradedPermissionPolicy(auto_approve=True),
+        context=ContextBuilder(compactor=compactor),
+        session_store=InMemorySessionStore(),
+    )
+
+    result = runtime.run(RunRequest(task="write", workspace=tmp_path))
+
+    assert result.success is True
+    assert compactor.calls == 2
+    assert provider.requests[0].messages[-1] == Message.user_text("write")
+    assert provider.requests[1].messages[-1].tool_call_id == "call-1"

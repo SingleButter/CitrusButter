@@ -351,14 +351,17 @@ class ContextBuilder:
         return [Message.user_text(task)]
 ```
 
-V1 context currently includes only the user task. Current workspace summaries,
-selected file snippets, tool result summaries, and memory context are future
-`ContextSource` additions rather than V1 behavior.
+V1 context includes only the current user task. Process-local `citrus chat`
+preserves successful model messages between turns by passing `RunResult.messages`
+into the next `RunRequest.messages`.
 
 Future retrieval can be added through a `ContextSource`-style interface. That
 interface is not implemented in V1; the likely shape is a small protocol that
 accepts the task and workspace metadata and returns additional `Message` or
 context items for `ContextBuilder` to include.
+
+V2 extends this boundary with active-message assembly and deterministic
+provider-call compaction. See `docs/V2_CONTEXT_ARCHITECTURE.md`.
 
 ## Memory System
 
