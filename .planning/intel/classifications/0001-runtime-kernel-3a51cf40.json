@@ -1,0 +1,23 @@
+{
+  "source_path": "/Users/wzuning/Develop/project/CitrusButter/docs/ADR/0001-runtime-kernel.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "ADR 0001: Use A Runtime Kernel Architecture",
+  "summary": "Defines AgentRuntime as the small runtime kernel with replaceable provider, tool, permission, context, session, memory, and observer interfaces.",
+  "scope": [
+    "AgentRuntime",
+    "ModelProvider",
+    "ToolRegistry",
+    "PermissionPolicy",
+    "ContextBuilder",
+    "SessionStore",
+    "MemoryService",
+    "RuntimeObserver",
+    "CLI"
+  ],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

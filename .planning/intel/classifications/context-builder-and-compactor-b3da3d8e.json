@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/wzuning/Develop/project/CitrusButter/docs/design-thinking/context-builder-and-compactor.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Context Builder 与 Compactor 设计思考",
+  "summary": "Explains the design rationale for separating context assembly, compaction, session history, memory, and future context sources.",
+  "scope": [
+    "ContextBuilder",
+    "ContextCompactor",
+    "ContextSource",
+    "MemoryService",
+    "SessionStore",
+    "AgentRuntime"
+  ],
+  "cross_refs": [
+    "https://github.com/shareAI-lab/learn-claude-code/tree/main/s08_context_compact",
+    "https://github.com/opencode-ai/opencode",
+    "https://github.com/HKUDS/NanoBot",
+    "https://github.com/earendil-works/pi"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

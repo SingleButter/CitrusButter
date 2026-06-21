@@ -1,0 +1,23 @@
+{
+  "source_path": "/Users/wzuning/Develop/project/CitrusButter/docs/V1_ARCHITECTURE.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "CitrusButter V1 Architecture",
+  "summary": "Documents the implemented V1 runtime-kernel architecture, verified capabilities, package layout, and extension boundaries.",
+  "scope": [
+    "AgentRuntime",
+    "CLI",
+    "providers",
+    "tools",
+    "permissions",
+    "context",
+    "sessions",
+    "memory",
+    "ToolSource"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

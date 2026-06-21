@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/wzuning/Develop/project/CitrusButter/docs/V2_CONTEXT_ARCHITECTURE.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "CitrusButter V2 Context Architecture",
+  "summary": "Documents implemented bounded context and deterministic compaction behavior plus future context extension paths.",
+  "scope": [
+    "ContextBuilder",
+    "ContextCompactor",
+    "DeterministicContextCompactor",
+    "tool result compaction",
+    "pair-safe segments",
+    "ContextSource"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

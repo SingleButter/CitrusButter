@@ -1,0 +1,21 @@
+{
+  "source_path": "/Users/wzuning/Develop/project/CitrusButter/docs/ROADMAP.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "CitrusButter Roadmap",
+  "summary": "Tracks implemented V1 and V2 work plus upcoming V2 extension, MCP, workspace safety, memory, hooks, and evaluation work.",
+  "scope": [
+    "V1 runtime kernel",
+    "V2 context management",
+    "V3 MCP",
+    "workspace safety",
+    "memory",
+    "hooks",
+    "evaluation"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": "Roadmap contains requirements-like future work, but it is prose documentation rather than a PRD."
+}
