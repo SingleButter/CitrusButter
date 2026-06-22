@@ -9,7 +9,7 @@ Requirements for the current GSD-managed milestone. Product V1 and core V2 are a
 
 ### Session Persistence
 
-- [ ] **SESS-01**: CLI users can persist sessions to JSONL through an option or default `.citrus/sessions/` directory.
+- [x] **SESS-01**: CLI users can persist sessions to JSONL through an option or default `.citrus/sessions/` directory.
 
 ### Context Sources And Compaction
 
@@ -61,7 +61,7 @@ Explicitly excluded from the current GSD-managed milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SESS-01 | Phase 1 | Pending |
+| SESS-01 | Phase 1 | Complete |
 | CTX-01 | Phase 2 | Pending |
 | CTX-02 | Phase 2 | Pending |
 | CTX-03 | Phase 3 | Pending |

@@ -10,7 +10,7 @@ This GSD roadmap starts from the existing brownfield state: the V1 runtime kerne
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: CLI Session Persistence** - Expose JSONL session persistence from the CLI.
+- [x] **Phase 1: CLI Session Persistence** - Expose JSONL session persistence from the CLI. (completed 2026-06-22)
 - [ ] **Phase 2: ContextSource Boundary** - Add retrievable context sources without changing the runtime loop.
 - [ ] **Phase 3: Advanced Context Compaction** - Add optional provider-aware budgeting and summary compaction behind the compactor boundary.
 - [ ] **Phase 4: MCP ToolSource Foundation** - Implement MCP tools as a `ToolSource`.
@@ -92,7 +92,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. CLI Session Persistence | 0/TBD | Not started | - |
+| 1. CLI Session Persistence | 1/1 | Complete   | 2026-06-22 |
 | 2. ContextSource Boundary | 0/TBD | Not started | - |
 | 3. Advanced Context Compaction | 0/TBD | Not started | - |
 | 4. MCP ToolSource Foundation | 0/TBD | Not started | - |
