@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -8,6 +9,14 @@ from citrus.providers.base import ModelRequest, ModelResponse
 from citrus.runtime.messages import Message, ToolCall
 
 runner = CliRunner()
+
+
+def _event_types(path: Path) -> list[str]:
+    return [
+        json.loads(line)["type"]
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line
+    ]
 
 
 def test_cli_help_shows_project_name() -> None:
@@ -34,6 +43,77 @@ def test_cli_run_uses_fake_provider() -> None:
 
     assert result.exit_code == 0
     assert "hello" in result.output
+
+
+def test_cli_run_writes_default_session_log(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "say hello",
+            "--provider",
+            "fake",
+            "--fake-response",
+            "hello",
+            "--session-id",
+            "run-1",
+        ],
+    )
+    session_log = tmp_path / ".citrus" / "sessions" / "run-1.jsonl"
+
+    assert result.exit_code == 0
+    assert session_log.exists()
+    assert "task_started" in _event_types(session_log)
+    assert "task_completed" in _event_types(session_log)
+
+
+def test_cli_run_writes_custom_session_dir(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    session_dir = tmp_path / "custom-sessions"
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "say hello",
+            "--provider",
+            "fake",
+            "--session-dir",
+            str(session_dir),
+            "--session-id",
+            "custom-1",
+        ],
+    )
+    session_log = session_dir / "custom-1.jsonl"
+
+    assert result.exit_code == 0
+    assert session_log.exists()
+    assert "task_completed" in _event_types(session_log)
+
+
+def test_cli_run_no_session_log_avoids_persistent_output(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "say hello",
+            "--provider",
+            "fake",
+            "--no-session-log",
+            "--session-id",
+            "off-1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert not (tmp_path / ".citrus" / "sessions" / "off-1.jsonl").exists()
 
 
 def test_cli_run_reports_missing_real_provider_key(tmp_path) -> None:
@@ -251,6 +331,35 @@ def test_cli_chat_preserves_context_between_turns(monkeypatch, tmp_path) -> None
         "first answer",
         "second",
     ]
+
+
+def test_cli_chat_writes_multiple_turns_to_one_session_log(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "chat",
+            "--provider",
+            "fake",
+            "--fake-response",
+            "hello",
+            "--session-id",
+            "chat-1",
+        ],
+        input="first\nsecond\nexit\n",
+    )
+    session_log = tmp_path / ".citrus" / "sessions" / "chat-1.jsonl"
+    event_types = _event_types(session_log)
+
+    assert result.exit_code == 0
+    assert session_log.exists()
+    assert len(list((tmp_path / ".citrus" / "sessions").glob("*.jsonl"))) == 1
+    assert event_types.count("task_started") == 2
+    assert event_types.count("task_completed") == 2
 
 
 def test_cli_chat_prompts_for_permission_and_continues(tmp_path, monkeypatch) -> None:

@@ -1,7 +1,9 @@
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 import typer
 from prompt_toolkit import prompt
@@ -14,6 +16,8 @@ from citrus.providers.base import ModelProvider, ModelResponse
 from citrus.providers.fake import FakeProvider
 from citrus.runtime.agent import AgentRuntime, RunRequest
 from citrus.runtime.messages import Message
+from citrus.sessions.base import SessionStore
+from citrus.sessions.jsonl import JsonlSessionStore
 from citrus.sessions.memory import InMemorySessionStore
 from citrus.tools.registry import ToolRegistry
 
@@ -71,14 +75,26 @@ def _build_selected_provider(
     )
 
 
-def _build_runtime(selected_provider: ModelProvider) -> AgentRuntime:
+def _build_session_store(
+    session_dir: Path | None,
+    no_session_log: bool,
+) -> SessionStore:
+    if no_session_log:
+        return InMemorySessionStore()
+    return JsonlSessionStore(session_dir or Path(".citrus/sessions"))
+
+
+def _build_runtime(
+    selected_provider: ModelProvider,
+    session_store: SessionStore,
+) -> AgentRuntime:
     return AgentRuntime(
         provider=selected_provider,
         tools=ToolRegistry.with_default_local_tools(),
         permissions=GradedPermissionPolicy(auto_approve=False),
         permission_approver=_approve_permission,
         context=ContextBuilder(),
-        session_store=InMemorySessionStore(),
+        session_store=session_store,
     )
 
 
@@ -100,6 +116,18 @@ def run(
         str,
         typer.Option(help="Scripted response for the fake provider."),
     ] = "CitrusButter fake provider completed the task.",
+    session_dir: Annotated[
+        Path | None,
+        typer.Option(help="Directory for JSONL session logs."),
+    ] = None,
+    no_session_log: Annotated[
+        bool,
+        typer.Option("--no-session-log", help="Disable persistent session logging."),
+    ] = False,
+    session_id: Annotated[
+        str | None,
+        typer.Option(help="Session ID for the run log filename."),
+    ] = None,
 ) -> None:
     """Run a coding-agent task."""
     try:
@@ -112,8 +140,9 @@ def run(
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from exc
 
-    runtime = _build_runtime(selected_provider)
-    result = runtime.run(RunRequest(task=task))
+    session_store = _build_session_store(session_dir, no_session_log)
+    runtime = _build_runtime(selected_provider, session_store)
+    result = runtime.run(RunRequest(task=task, session_id=session_id))
     typer.echo(result.final_message)
 
 
@@ -131,6 +160,18 @@ def chat(
         str,
         typer.Option(help="Scripted response for the fake provider."),
     ] = "CitrusButter fake provider completed the task.",
+    session_dir: Annotated[
+        Path | None,
+        typer.Option(help="Directory for JSONL session logs."),
+    ] = None,
+    no_session_log: Annotated[
+        bool,
+        typer.Option("--no-session-log", help="Disable persistent session logging."),
+    ] = False,
+    session_id: Annotated[
+        str | None,
+        typer.Option(help="Session ID for the chat log filename."),
+    ] = None,
 ) -> None:
     """Start an interactive coding-agent chat session."""
     try:
@@ -144,7 +185,9 @@ def chat(
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from exc
 
-    runtime = _build_runtime(selected_provider)
+    session_id = session_id or str(uuid4())
+    session_store = _build_session_store(session_dir, no_session_log)
+    runtime = _build_runtime(selected_provider, session_store)
     messages: list[Message] = []
     typer.echo("Starting CitrusButter chat. Type exit, quit, or :q to leave.")
 
@@ -162,7 +205,9 @@ def chat(
             typer.echo("Goodbye.")
             return
 
-        result = runtime.run(RunRequest(task=task, messages=messages))
+        result = runtime.run(
+            RunRequest(task=task, messages=messages, session_id=session_id)
+        )
         typer.echo(result.final_message)
         if result.success:
             messages = result.messages

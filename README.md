@@ -216,13 +216,25 @@ explicit approval; pressing Enter keeps the safe default and denies the tool.
 
 The SDK includes two session stores:
 
-- `InMemorySessionStore`: used by the current CLI. Events are available only
-  while the process is running.
-- `JsonlSessionStore`: implemented for persistent event logs, but not yet wired
-  into the CLI by default.
+- `JsonlSessionStore`: used by the CLI by default for durable JSONL audit logs
+  under `.citrus/sessions/{session_id}.jsonl`.
+- `InMemorySessionStore`: used when persistent logging is disabled. Events are
+  available only while the process is running.
 
-The next practical step is to add a CLI option such as `--session-dir
-.citrus/sessions` and persist each run as JSONL.
+Both `citrus run` and `citrus chat` accept session logging controls:
+
+```bash
+citrus run "inspect this project" --session-id run-1
+citrus chat --session-id chat-1
+citrus run "inspect this project" --session-dir /tmp/citrus-sessions
+citrus run "inspect this project" --no-session-log
+```
+
+Session logs record runtime events for debugging, inspection, and future replay
+or evaluation work. They do not automatically restore active chat context or act
+as long-term memory; `citrus chat` keeps active model context in process through
+successful `RunResult.messages`. The `.citrus/` directory is ignored by git
+because local config and logs may contain sensitive data.
 
 ## Development
 
