@@ -2,6 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
+current_phase: 1
+current_phase_name: CLI Session Persistence
+total_phases: 6
+current_plan: 0
+total_plans_in_phase: 0
 status: planning
 stopped_at: Phase 1 context gathered
 last_updated: "2026-06-22T03:10:42.404Z"
@@ -25,12 +30,17 @@ See: .planning/PROJECT.md (updated 2026-06-22)
 
 ## Current Position
 
+Current Phase: 1
+Current Phase Name: CLI Session Persistence
+Total Phases: 6
+Current Plan: 0
+Total Plans in Phase: 0
 Phase: 1 of 6 (CLI Session Persistence)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
 Last activity: 2026-06-22 - Ingested existing docs into GSD planning.
 
-Progress: [----------] 0%
+Progress: 0% [----------]
 
 ## Performance Metrics
 
