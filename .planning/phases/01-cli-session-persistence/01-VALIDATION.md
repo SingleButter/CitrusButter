@@ -1,7 +1,7 @@
 ---
 phase: 01
 slug: cli-session-persistence
-status: ready
+status: verified
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-06-22
@@ -38,11 +38,32 @@ created: 2026-06-22
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 01-01-01 | 01 | 1 | SESS-01 | T-01-01 | Session files stay under user-selected/default directory | CLI integration | `env PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_cli.py tests/test_sessions.py` | yes | pending |
-| 01-01-02 | 01 | 1 | SESS-01 | T-01-02 | `--no-session-log` avoids persistent writes | CLI integration | `env PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_cli.py tests/test_sessions.py` | yes | pending |
-| 01-01-03 | 01 | 1 | SESS-01 | — | README documents exact CLI flags | docs/source | `rg -- '--session-dir|--no-session-log|--session-id' README.md` | yes | pending |
+| 01-01-01 | 01 | 1 | SESS-01 | T-01-01 | Session files stay under user-selected/default directory | CLI integration | `env PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_cli.py tests/test_sessions.py` | yes | green |
+| 01-01-02 | 01 | 1 | SESS-01 | T-01-02 | `--no-session-log` avoids persistent writes | CLI integration | `env PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_cli.py tests/test_sessions.py` | yes | green |
+| 01-01-03 | 01 | 1 | SESS-01 | — | README documents exact CLI flags | docs/source | `rg -- '--session-dir|--no-session-log|--session-id|.citrus/sessions' README.md` | yes | green |
 
 *Status: pending · green · red · flaky*
+
+---
+
+## Validation Audit 2026-06-22
+
+| Metric | Count |
+|--------|-------|
+| Requirements audited | 1 |
+| Verification rows audited | 3 |
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+Evidence:
+
+- `tests/test_cli.py` contains automated coverage for default session logs, custom `--session-dir`, `--no-session-log`, and multi-turn `chat --session-id`.
+- `tests/test_sessions.py` covers JSONL store round-trip behavior.
+- `README.md` contains the documented session flags and `.citrus/sessions` path.
+- `env PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_cli.py tests/test_sessions.py` passed.
+- `env PYTHONPATH=src .venv/bin/python -m pytest -q` passed.
+- `rg -- '--session-dir|--no-session-log|--session-id|.citrus/sessions' README.md` passed.
 
 ---
 
